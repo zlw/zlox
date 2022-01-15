@@ -13,9 +13,9 @@ pub fn main() anyerror!u8 {
     defer _   = chunk.deinit();
 
     const constant = chunk.addConstant(1.2);
-    chunk.write(OpCode.op_constant.toU8());
-    chunk.write(@intCast(u8, constant));
-    chunk.write(OpCode.op_return.toU8());
+    chunk.write(OpCode.op_constant.toU8(), 123);
+    chunk.write(@intCast(u8, constant), 123);
+    chunk.write(OpCode.op_return.toU8(), 123);
 
     debug.disassembleChunk(&chunk, "test chunk");
 

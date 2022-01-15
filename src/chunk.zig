@@ -22,24 +22,29 @@ pub const Chunk = struct {
 
     const BytesArray = DynamicArray(u8);
     const ValueArray = DynamicArray(Value);
+    const LinesArray = DynamicArray(usize);
 
     code:      BytesArray,
     constants: ValueArray,
+    lines:     LinesArray,
 
     pub fn init(allocator: *Allocator) Chunk {
         return Self{
             .code = BytesArray.init(allocator),
             .constants = ValueArray.init(allocator),
+            .lines = LinesArray.init(allocator),
         };
     }
 
     pub fn deinit(self: *Chunk) void {
         self.code.deinit();
         self.constants.deinit();
+        self.lines.deinit();
     }
 
-    pub fn write(self: *Self, byte: u8) void {
+    pub fn write(self: *Self, byte: u8, line: usize) void {
         self.code.appendItem(byte);
+        self.lines.appendItem(line);
     }
 
     pub fn addConstant(self: *Self, value: Value) u16 {
@@ -58,14 +63,14 @@ test "create a Chunk with bytes only" {
     var chunk = Chunk.init(&gpa.allocator());
     defer chunk.deinit();
 
-    chunk.write(OpCode.op_return.toU8());
+    chunk.write(OpCode.op_return.toU8(), 1);
     try expect(chunk.code.items[0] == OpCode.op_return.toU8());
 
-    chunk.write(OpCode.op_return.toU8());
-    chunk.write(OpCode.op_return.toU8());
-    chunk.write(OpCode.op_return.toU8());
-    chunk.write(OpCode.op_return.toU8());
-    chunk.write(OpCode.op_return.toU8());
+    chunk.write(OpCode.op_return.toU8(), 1);
+    chunk.write(OpCode.op_return.toU8(), 1);
+    chunk.write(OpCode.op_return.toU8(), 1);
+    chunk.write(OpCode.op_return.toU8(), 1);
+    chunk.write(OpCode.op_return.toU8(), 1);
 
     try expect(chunk.code.items[4] == OpCode.op_return.toU8());
     chunk.deinit();

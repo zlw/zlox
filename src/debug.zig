@@ -16,8 +16,18 @@ pub fn disassembleChunk(chunk: *Chunk, comptime name: []const u8) void {
 
 pub fn disassembleInstruction(chunk: *Chunk, offset: usize) usize {
     std.debug.print("{d:0>4} ", .{offset});
+    const code = chunk.code;
+    const lines = chunk.lines;
 
-    return switch(@intToEnum(OpCode, chunk.code.items[offset])) {
+    if (offset > 0 and lines.items[offset] == lines.items[offset - 1]) {
+        std.debug.print("   | ", .{});
+    } else {
+        std.debug.print("{d: >4} ", .{lines.items[offset]});
+    }
+
+    const instruction = @intToEnum(OpCode, code.items[offset]);
+
+    return switch(instruction) {
         .op_constant => constantInstruction("OP_CONSTANT", chunk, offset),
         .op_return   => simpleInstruction("OP_RETURN", offset),
     };
