@@ -1,18 +1,23 @@
-const std = @import("std");
-const chunk = @import("./chunk.zig");
-const dynamic_array = @import("./dynamic_array.zig");
+const std   = @import("std");
 const debug = @import("./debug.zig");
+
+const Chunk  = @import("./chunk.zig").Chunk;
+const OpCode = @import("./chunk.zig").OpCode;
 
 pub fn main() anyerror!u8 {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     var allocator = gpa.allocator();
 
-    var ret = chunk.Chunk.init(&allocator);
-    defer _ = ret.deinit();
-    ret.write(chunk.OpCode.op_return.toU8());
+    var chunk = Chunk.init(&allocator);
+    defer _   = chunk.deinit();
 
-    debug.disassembleChunk(&ret, "test chunk");
+    const constant = chunk.addConstant(1.2);
+    chunk.write(OpCode.op_constant.toU8());
+    chunk.write(@intCast(u8, constant));
+    chunk.write(OpCode.op_return.toU8());
+
+    debug.disassembleChunk(&chunk, "test chunk");
 
     return 0;
 }

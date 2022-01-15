@@ -20,6 +20,13 @@ pub fn DynamicArray(comptime T: type) type {
             };
         }
 
+        pub fn deinit(self: *Self) void {
+            if (self.capacity == 0) return;
+
+            self.allocator.free(self.items);
+            self.* = Self.init(self.allocator);
+        }
+
         pub fn appendItem(self: *Self, item: T) void {
             if (self.capacity < self.count + 1) {
                 self.capacity = growCapacity(self.capacity);
@@ -28,13 +35,6 @@ pub fn DynamicArray(comptime T: type) type {
 
             self.items[self.count] = item;
             self.count += 1;
-        }
-
-        pub fn deinit(self: *Self) void {
-            if (self.capacity == 0) return;
-
-            self.allocator.free(self.items);
-            self.* = Self.init(self.allocator);
         }
 
         fn growCapacity(capacity: usize) usize {

@@ -1,5 +1,6 @@
 const std = @import("std");
 const DynamicArray = @import("./dynamic_array.zig").DynamicArray;
+const Value = @import("./value.zig").Value;
 
 const Allocator = std.mem.Allocator;
 
@@ -8,6 +9,7 @@ const expect = std.testing.expect;
 pub const OpCode = enum(u8) {
     const Self = @This();
 
+    op_constant,
     op_return,
 
     pub fn toU8(self: Self) u8 {
@@ -19,21 +21,30 @@ pub const Chunk = struct {
     const Self = @This();
 
     const BytesArray = DynamicArray(u8);
+    const ValueArray = DynamicArray(Value);
 
-    code: BytesArray,
+    code:      BytesArray,
+    constants: ValueArray,
 
     pub fn init(allocator: *Allocator) Chunk {
         return Self{
             .code = BytesArray.init(allocator),
+            .constants = ValueArray.init(allocator),
         };
+    }
+
+    pub fn deinit(self: *Chunk) void {
+        self.code.deinit();
+        self.constants.deinit();
     }
 
     pub fn write(self: *Self, byte: u8) void {
         self.code.appendItem(byte);
     }
 
-    pub fn deinit(self: *Chunk) void {
-        self.code.deinit();
+    pub fn addConstant(self: *Self, value: Value) u16 {
+        self.constants.appendItem(value);
+        return @intCast(u16, self.constants.count - 1);
     }
 };
 
