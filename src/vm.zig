@@ -5,10 +5,10 @@ const debug  = @import("./debug.zig");
 
 const Chunk  = @import("./chunk.zig").Chunk;
 const OpCode = @import("./chunk.zig").OpCode;
-const value  = @import("./value.zig");
-const Value  = value.Value;
+const Value  = @import("./value.zig").Value;
 
 const debug_trace_execution = true;
+const stack_max             = 256;
 
 pub const InterpretError = error {
     CompileError,
@@ -20,11 +20,15 @@ pub const Vm = struct {
 
     chunk: *Chunk,
     ip: usize,
+    stack: [stack_max]Value,
+    stack_top: usize,
     allocator: *Allocator,
 
     pub fn init(allocator: *Allocator) Self {
         return Self {
             .ip = 0,
+            .stack_top = 0,
+            .stack = undefined,
             .chunk = undefined,
             .allocator = allocator
         };
@@ -39,6 +43,7 @@ pub const Vm = struct {
     pub fn run(self: *Self) InterpretError!void {
         while(true) {
             if (comptime debug_trace_execution) {
+                debug.printStack(self.stack[0..self.stack_top]);
                 debug.disassembleInstruction(self.chunk, self.ip);
             }
 
@@ -47,13 +52,27 @@ pub const Vm = struct {
             switch(instruction) {
                 .op_constant => {
                     const constant = self.readConstant();
-                    value.printValue(constant);
+                    debug.printValue(constant);
                     std.debug.print("\n", .{});
                     break;
                 },
                 .op_return => return,
             }
         }
+    }
+
+    pub fn resetStack(self: *Self) void {
+        self.stack_top = 0;
+    }
+
+    pub fn push(self: *Self, value: *Value) void {
+        self.stack[self.stack_top] = value;
+        self.stack_top += 1;
+    }
+
+    pub fn pop(self: *Self) Value {
+        self.stack_top -= 1;
+        return self.stack[self.stack_top];
     }
 
     inline fn readInstruction(self: *Self) OpCode {

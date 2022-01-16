@@ -2,6 +2,7 @@ const std = @import("std");
 
 const Chunk  = @import("./chunk.zig").Chunk;
 const OpCode = @import("./chunk.zig").OpCode;
+const Value  = @import("./value.zig").Value;
 
 pub fn disassembleChunk(chunk: *Chunk, comptime name: []const u8) void {
     std.debug.print("=== {s} ===\n", .{name});
@@ -49,4 +50,19 @@ fn constantInstruction(name: []const u8, chunk: *Chunk, offset: usize) void {
     const constant = chunk.constants.items[constant_idx];
 
     std.debug.print("{s: <16} '{}'\n", .{ name, constant });
+}
+
+pub fn printValue(value: Value) void {
+    std.debug.print("{d}", .{value});
+}
+
+
+pub fn printStack(stack: []Value) void {
+    std.debug.print("          ", .{});
+
+    for (stack) |value| {
+        std.debug.print("[{}]", .{value});
+    }
+
+    std.debug.print("\n", .{});
 }
