@@ -1,10 +1,14 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+const debug  = @import("./debug.zig");
+
 const Chunk  = @import("./chunk.zig").Chunk;
 const OpCode = @import("./chunk.zig").OpCode;
-const value = @import("./value.zig");
-const Value = value.Value;
+const value  = @import("./value.zig");
+const Value  = value.Value;
+
+const debug_trace_execution = true;
 
 pub const InterpretError = error {
     CompileError,
@@ -34,6 +38,10 @@ pub const Vm = struct {
 
     pub fn run(self: *Self) InterpretError!void {
         while(true) {
+            if (comptime debug_trace_execution) {
+                debug.disassembleInstruction(self.chunk, self.ip);
+            }
+
             const instruction = self.readInstruction();
 
             switch(instruction) {

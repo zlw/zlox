@@ -1,5 +1,4 @@
 const std   = @import("std");
-const debug = @import("./debug.zig");
 
 const Chunk  = @import("./chunk.zig").Chunk;
 const OpCode = @import("./chunk.zig").OpCode;
@@ -20,7 +19,6 @@ pub fn main() anyerror!u8 {
     chunk.write(@intCast(u8, constant), 1);
     chunk.write(OpCode.op_return.toU8(), 1);
 
-    debug.disassembleChunk(&chunk, "test chunk");
     try vm.interpret(&chunk);
 
     return 0;
