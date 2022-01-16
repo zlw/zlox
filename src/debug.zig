@@ -38,6 +38,10 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) void {
     switch(instruction) {
         .op_constant => constantInstruction("OP_CONSTANT", chunk, offset),
         .op_negate   => simpleInstruction("OP_NEGATE"),
+        .op_add      => simpleInstruction("OP_ADD"),
+        .op_subtract => simpleInstruction("OP_SUBTRACT"),
+        .op_multiply => simpleInstruction("OP_MULTIPLY"),
+        .op_divide   => simpleInstruction("OP_DIVIDE"),
         .op_return   => simpleInstruction("OP_RETURN"),
     }
 }

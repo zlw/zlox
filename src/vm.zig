@@ -56,6 +56,30 @@ pub const Vm = struct {
                 .op_negate => {
                     self.push(-self.pop());
                 },
+                .op_add => {
+                    const a = self.pop();
+                    const b = self.pop();
+
+                    self.push(a + b);
+                },
+                .op_subtract => {
+                    const a = self.pop();
+                    const b = self.pop();
+
+                    self.push(a - b);
+                },
+                .op_multiply => {
+                    const a = self.pop();
+                    const b = self.pop();
+
+                    self.push(a * b);
+                },
+                .op_divide => {
+                    const a = self.pop();
+                    const b = self.pop();
+
+                    self.push(a / b);
+                },
                 .op_return => {
                     debug.printValue(self.pop());
                     std.debug.print("\n", .{});
