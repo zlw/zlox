@@ -3,6 +3,8 @@ const Allocator = std.mem.Allocator;
 
 const Chunk  = @import("./chunk.zig").Chunk;
 const OpCode = @import("./chunk.zig").OpCode;
+const value = @import("./value.zig");
+const Value = value.Value;
 
 pub const InterpretError = error {
     CompileError,
@@ -35,7 +37,12 @@ pub const Vm = struct {
             const instruction = self.readInstruction();
 
             switch(instruction) {
-                .op_constant => return,
+                .op_constant => {
+                    const constant = self.readConstant();
+                    value.printValue(constant);
+                    std.debug.print("\n", .{});
+                    break;
+                },
                 .op_return => return,
             }
         }
@@ -45,5 +52,11 @@ pub const Vm = struct {
         const instruction = OpCode.fromU8(self.chunk.code.items[self.ip]);
         self.ip += 1;
         return instruction;
+    }
+
+    inline fn readConstant(self: *Self) Value {
+        const constant = self.chunk.constants.items[self.chunk.code.items[self.ip]];
+        self.ip += 1;
+        return constant;
     }
 };

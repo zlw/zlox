@@ -16,6 +16,7 @@ pub fn disassembleChunk(chunk: *Chunk, comptime name: []const u8) void {
 
 pub fn disassembleInstruction(chunk: *Chunk, offset: usize) usize {
     std.debug.print("{d:0>4} ", .{offset});
+
     const code = chunk.code;
     const lines = chunk.lines;
 

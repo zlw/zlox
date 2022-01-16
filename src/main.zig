@@ -16,9 +16,9 @@ pub fn main() anyerror!u8 {
     defer _   = chunk.deinit();
 
     const constant = chunk.addConstant(1.2);
-    chunk.write(OpCode.op_constant.toU8(), 123);
-    chunk.write(@intCast(u8, constant), 123);
-    chunk.write(OpCode.op_return.toU8(), 123);
+    chunk.write(OpCode.op_constant.toU8(), 1);
+    chunk.write(@intCast(u8, constant), 1);
+    chunk.write(OpCode.op_return.toU8(), 1);
 
     debug.disassembleChunk(&chunk, "test chunk");
     try vm.interpret(&chunk);
