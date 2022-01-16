@@ -10,6 +10,7 @@ pub const OpCode = enum(u8) {
     const Self = @This();
 
     op_constant,
+    op_negate,
     op_return,
 
     pub fn toU8(self: Self) u8 {

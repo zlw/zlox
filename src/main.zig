@@ -17,6 +17,7 @@ pub fn main() anyerror!u8 {
     const constant = chunk.addConstant(1.2);
     chunk.write(OpCode.op_constant.toU8(), 1);
     chunk.write(@intCast(u8, constant), 1);
+    chunk.write(OpCode.op_negate.toU8(), 1);
     chunk.write(OpCode.op_return.toU8(), 1);
 
     try vm.interpret(&chunk);

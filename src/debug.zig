@@ -37,6 +37,7 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) void {
 
     switch(instruction) {
         .op_constant => constantInstruction("OP_CONSTANT", chunk, offset),
+        .op_negate   => simpleInstruction("OP_NEGATE"),
         .op_return   => simpleInstruction("OP_RETURN"),
     }
 }

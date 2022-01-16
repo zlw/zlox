@@ -53,6 +53,9 @@ pub const Vm = struct {
                     const constant = self.readConstant();
                     self.push(constant);
                 },
+                .op_negate => {
+                    self.push(-self.pop());
+                },
                 .op_return => {
                     debug.printValue(self.pop());
                     std.debug.print("\n", .{});
