@@ -15,6 +15,10 @@ pub const OpCode = enum(u8) {
     pub fn toU8(self: Self) u8 {
         return @enumToInt(self);
     }
+
+    pub fn fromU8(n: u8) Self {
+        return @intToEnum(Self, n);
+    }
 };
 
 pub const Chunk = struct {

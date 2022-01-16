@@ -25,7 +25,7 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) usize {
         std.debug.print("{d: >4} ", .{lines.items[offset]});
     }
 
-    const instruction = @intToEnum(OpCode, code.items[offset]);
+    const instruction = OpCode.fromU8(code.items[offset]);
 
     return switch(instruction) {
         .op_constant => constantInstruction("OP_CONSTANT", chunk, offset),

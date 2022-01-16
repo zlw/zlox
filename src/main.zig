@@ -3,11 +3,14 @@ const debug = @import("./debug.zig");
 
 const Chunk  = @import("./chunk.zig").Chunk;
 const OpCode = @import("./chunk.zig").OpCode;
+const Vm     = @import("./vm.zig").Vm;
 
 pub fn main() anyerror!u8 {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
+    var gpa       = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _       = gpa.deinit();
     var allocator = gpa.allocator();
+
+    var vm    = Vm.init(&allocator);
 
     var chunk = Chunk.init(&allocator);
     defer _   = chunk.deinit();
@@ -18,6 +21,7 @@ pub fn main() anyerror!u8 {
     chunk.write(OpCode.op_return.toU8(), 123);
 
     debug.disassembleChunk(&chunk, "test chunk");
+    try vm.interpret(&chunk);
 
     return 0;
 }
