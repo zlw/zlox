@@ -23,9 +23,6 @@ pub const OpCode = enum(u8) {
     pub fn operands(self: *Self) usize {
         return switch (self) {
             .op_constant => 1,
-            .op_define_gloabl => 1,
-            .op_get_global => 1,
-            .op_set_global => 1,
             else => 0,
         };
     }

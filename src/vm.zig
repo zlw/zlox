@@ -8,6 +8,7 @@ const OpCode = @import("./chunk.zig").OpCode;
 const Value  = @import("./value.zig").Value;
 
 const debug_trace_execution = true;
+const debug_stack_execution = false;
 const stack_max             = 256;
 
 pub const InterpretError = error {
@@ -42,21 +43,22 @@ pub const Vm = struct {
 
     pub fn run(self: *Self) InterpretError!void {
         while(true) {
-            if (comptime debug_trace_execution) {
-                debug.printStack(self.stack[0..self.stack_top]);
-                debug.disassembleInstruction(self.chunk, self.ip);
-            }
+            if (comptime debug_stack_execution) { debug.printStack(self.stack[0..self.stack_top]); }
+            if (comptime debug_trace_execution) { debug.disassembleInstruction(self.chunk, self.ip); }
 
             const instruction = self.readInstruction();
 
             switch(instruction) {
                 .op_constant => {
                     const constant = self.readConstant();
-                    debug.printValue(constant);
-                    std.debug.print("\n", .{});
-                    break;
+                    self.push(constant);
                 },
-                .op_return => return,
+                .op_return => {
+                    debug.printValue(self.pop());
+                    std.debug.print("\n", .{});
+
+                    return;
+                },
             }
         }
     }
@@ -65,7 +67,7 @@ pub const Vm = struct {
         self.stack_top = 0;
     }
 
-    pub fn push(self: *Self, value: *Value) void {
+    pub fn push(self: *Self, value: Value) void {
         self.stack[self.stack_top] = value;
         self.stack_top += 1;
     }
