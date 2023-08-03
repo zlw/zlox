@@ -20,21 +20,26 @@ pub const InterpretError = error{
 pub const Vm = struct {
     const Self = @This();
 
-    chunk: *Chunk,
-    ip: usize,
-    stack: [stack_max]Value,
-    stack_top: usize,
+    chunk: *Chunk = undefined,
+    ip: usize = 0,
+    stack: [stack_max]Value = undefined,
+    stack_top: usize = 0,
     allocator: *Allocator,
 
     pub fn init(allocator: *Allocator) Self {
-        return Self{ .ip = 0, .stack_top = 0, .stack = undefined, .chunk = undefined, .allocator = allocator };
+        return Self{ .allocator = allocator };
     }
 
     pub fn interpret(self: *Self, source: []const u8) InterpretError!void {
-        _ = self;
-        compile(source);
+        var chunk = Chunk.init(self.allocator);
+        defer chunk.deinit();
 
-        return;
+        compile(source, &chunk) catch return InterpretError.CompileError;
+
+        self.chunk = &chunk;
+        self.ip = 0;
+
+        return self.run();
     }
 
     pub fn run(self: *Self) InterpretError!void {

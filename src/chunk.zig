@@ -58,12 +58,12 @@ pub const Chunk = struct {
         self.lines.deinit();
     }
 
-    pub fn write(self: *Self, byte: u8, line: usize) void {
+    pub fn write(self: *Self, byte: u8, line: usize) !void {
         self.code.appendItem(byte);
         self.lines.appendItem(line);
     }
 
-    pub fn addConstant(self: *Self, value: Value) u16 {
+    pub fn addConstant(self: *Self, value: Value) !u16 {
         self.constants.appendItem(value);
         return @intCast(u16, self.constants.count - 1);
     }

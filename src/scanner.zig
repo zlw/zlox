@@ -51,7 +51,7 @@ pub const TokenType = enum {
 };
 
 pub const Token = struct {
-    type: TokenType,
+    token_type: TokenType,
     lexeme: []const u8,
     line: usize,
 };
@@ -102,6 +102,7 @@ pub const Scanner = struct {
         while (isAlpha(self.peek()) or isDigit(self.peek())) {
             self.current += 1;
         }
+
         return self.makeToken(self.identifierType());
     }
 
@@ -188,7 +189,7 @@ pub const Scanner = struct {
 
     fn makeToken(self: *Self, tokenType: TokenType) Token {
         return Token{
-            .type = tokenType,
+            .token_type = tokenType,
             .lexeme = self.source[self.start..self.current],
             .line = self.line,
         };
@@ -196,46 +197,50 @@ pub const Scanner = struct {
 
     fn makeError(self: *Self, message: []const u8) Token {
         return Token{
-            .type = TokenType.Error,
+            .token_type = TokenType.Error,
             .lexeme = message,
             .line = self.line,
         };
     }
 
-    fn identifierType(self: *Self) TokenType {
-        return switch (self.source[self.start]) {
-            'a' => self.checkKeyword("and", TokenType.And),
-            'c' => self.checkKeyword("class", TokenType.Class),
-            'e' => self.checkKeyword("else", TokenType.Else),
-            'f' => switch (self.source[self.start + 1]) {
-                'a' => self.checkKeyword("false", TokenType.False),
-                'o' => self.checkKeyword("for", TokenType.For),
-                'u' => self.checkKeyword("fun", TokenType.Fun),
-                else => TokenType.Identifier,
+    fn identifierType(self: *Scanner) TokenType {
+        return switch (self.peek()) {
+            'a' => self.checkKeyword(1, "nd", TokenType.And),
+            'c' => self.checkKeyword(1, "lass", TokenType.Class),
+            'e' => self.checkKeyword(1, "lse", TokenType.Else),
+            'i' => self.checkKeyword(1, "f", TokenType.If),
+            'n' => self.checkKeyword(1, "il", TokenType.Nil),
+            'o' => self.checkKeyword(1, "r", TokenType.Or),
+            'p' => self.checkKeyword(1, "rint", TokenType.Print),
+            'r' => self.checkKeyword(1, "eturn", TokenType.Return),
+            's' => self.checkKeyword(1, "uper", TokenType.Super),
+            'v' => self.checkKeyword(1, "ar", TokenType.Var),
+            'w' => self.checkKeyword(1, "hile", TokenType.While),
+            'f' => {
+                return switch (self.peekNext()) {
+                    'a' => self.checkKeyword(2, "lse", TokenType.False),
+                    'o' => self.checkKeyword(2, "r", TokenType.For),
+                    'u' => self.checkKeyword(2, "n", TokenType.Fun),
+                    else => TokenType.Identifier,
+                };
             },
-            'i' => self.checkKeyword("if", TokenType.If),
-            'n' => self.checkKeyword("nil", TokenType.Nil),
-            'o' => self.checkKeyword("or", TokenType.Or),
-            'p' => self.checkKeyword("print", TokenType.Print),
-            'r' => self.checkKeyword("return", TokenType.Return),
-            's' => self.checkKeyword("super", TokenType.Super),
-            't' => switch (self.source[self.start + 1]) {
-                'h' => self.checkKeyword("this", TokenType.This),
-                'r' => self.checkKeyword("true", TokenType.True),
-                else => TokenType.Identifier,
+            't' => {
+                return switch (self.peekNext()) {
+                    'h' => self.checkKeyword(2, "is", TokenType.This),
+                    'r' => self.checkKeyword(2, "ue", TokenType.True),
+                    else => TokenType.Identifier,
+                };
             },
-            'v' => self.checkKeyword("var", TokenType.Var),
-            'w' => self.checkKeyword("while", TokenType.While),
-            else => return TokenType.Identifier,
+            else => TokenType.Identifier,
         };
     }
 
-    fn checkKeyword(self: *Self, keyword: []const u8, ty: TokenType) TokenType {
-        if (std.mem.eql(u8, keyword, self.source[self.start..self.current])) {
-            return ty;
-        }
-
-        return TokenType.Identifier;
+    fn checkKeyword(self: *Scanner, offset: usize, str: []const u8, token_type: TokenType) TokenType {
+        if (self.current != str.len + offset) return TokenType.Identifier;
+        
+        const sourceSlice = self.source[offset..self.current];
+        std.debug.assert(sourceSlice.len == str.len);
+        return if (std.mem.eql(u8, sourceSlice, str)) token_type else TokenType.Identifier;
     }
 };
 
