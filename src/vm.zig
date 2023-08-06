@@ -18,6 +18,8 @@ pub const InterpretError = error{
     RuntimeError,
 };
 
+const BinaryOp = enum { add, sub, mul, div };
+
 pub const Vm = struct {
     const Self = @This();
 
@@ -65,55 +67,18 @@ pub const Vm = struct {
                         .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
                         .number => |val| self.push(Value.NumberValue(-val)),
                     }
-                    
                 },
                 .op_add => {
-                    const boxed_lhs = self.pop();
-                    const boxed_rhs = self.pop();
-
-                    switch (boxed_lhs) {
-                        .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
-                        .number => |lhs| switch(boxed_rhs) {
-                            .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
-                            .number => |rhs| self.push(Value.NumberValue(lhs + rhs)),
-                        }
-                    }
+                    self.binaryOp(.add);
                 },
                 .op_subtract => {
-                    const boxed_lhs = self.pop();
-                    const boxed_rhs = self.pop();
-
-                    switch (boxed_lhs) {
-                        .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
-                        .number => |lhs| switch(boxed_rhs) {
-                            .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
-                            .number => |rhs|  self.push(Value.NumberValue(lhs - rhs)),
-                        }
-                    }
+                    self.binaryOp(.sub);
                 },
                 .op_multiply => {
-                    const boxed_lhs = self.pop();
-                    const boxed_rhs = self.pop();
-
-                    switch (boxed_lhs) {
-                        .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
-                        .number => |lhs| switch(boxed_rhs) {
-                            .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
-                            .number => |rhs|  self.push(Value.NumberValue(lhs * rhs)),
-                        }
-                    }
+                    self.binaryOp(.mul);
                 },
                 .op_divide => {
-                    const boxed_lhs = self.pop();
-                    const boxed_rhs = self.pop();
-
-                    switch (boxed_lhs) {
-                        .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
-                        .number => |lhs| switch(boxed_rhs) {
-                            .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
-                            .number => |rhs|  self.push(Value.NumberValue(lhs / rhs)),
-                        }
-                    }
+                    self.binaryOp(.div);
                 },
                 .op_return => {
                     printValue(self.pop());
@@ -155,9 +120,27 @@ pub const Vm = struct {
         const err_writer = std.io.getStdErr().writer();
 
         err_writer.print(message ++ "\n", args) catch {};
-        
+
         err_writer.print("[line {d}] in script.\n", .{self.chunk.lines.items[self.ip]}) catch {};
-        
+
         self.resetStack();
+    }
+
+    inline fn binaryOp(self: *Self, op: BinaryOp) void {
+        const boxed_lhs = self.pop();
+        const boxed_rhs = self.pop();
+
+        switch (boxed_lhs) {
+            .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
+            .number => |lhs| switch (boxed_rhs) {
+                .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
+                .number => |rhs| self.push(Value.NumberValue(switch (op) {
+                    .add => lhs + rhs,
+                    .sub => lhs - rhs,
+                    .mul => lhs * rhs,
+                    .div => lhs / rhs,
+                })),
+            },
+        }
     }
 };
