@@ -142,7 +142,7 @@ const Parser = struct {
 
     fn number(self: *Self) !void {
         const value = std.fmt.parseFloat(f64, self.previous.lexeme) catch unreachable;
-        try self.emitConstant(value);
+        try self.emitConstant(Value.NumberValue(value));
     }
 
     fn grouping(self: *Self) !void {

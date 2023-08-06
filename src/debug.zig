@@ -57,11 +57,6 @@ fn constantInstruction(name: []const u8, chunk: *Chunk, offset: usize) void {
     std.debug.print("{s: <16} '{}'\n", .{ name, constant });
 }
 
-pub fn printValue(value: Value) void {
-    std.debug.print("{d}", .{value});
-}
-
-
 pub fn printStack(stack: []Value) void {
     std.debug.print("          ", .{});
 

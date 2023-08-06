@@ -2,10 +2,11 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const debug = @import("./debug.zig");
-
 const Chunk = @import("./chunk.zig").Chunk;
 const OpCode = @import("./chunk.zig").OpCode;
 const Value = @import("./value.zig").Value;
+const printValue = @import("./value.zig").printValue;
+
 const compile = @import("./compiler.zig").compile;
 
 const debug_trace_execution = true;
@@ -58,22 +59,64 @@ pub const Vm = struct {
                     self.push(self.readConstant());
                 },
                 .op_negate => {
-                    self.push(-self.pop());
+                    const boxed = self.pop();
+
+                    switch (boxed) {
+                        .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
+                        .number => |val| self.push(Value.NumberValue(-val)),
+                    }
+                    
                 },
                 .op_add => {
-                    self.push(self.pop() + self.pop());
+                    const boxed_lhs = self.pop();
+                    const boxed_rhs = self.pop();
+
+                    switch (boxed_lhs) {
+                        .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
+                        .number => |lhs| switch(boxed_rhs) {
+                            .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
+                            .number => |rhs| self.push(Value.NumberValue(lhs + rhs)),
+                        }
+                    }
                 },
                 .op_subtract => {
-                    self.push(self.pop() - self.pop());
+                    const boxed_lhs = self.pop();
+                    const boxed_rhs = self.pop();
+
+                    switch (boxed_lhs) {
+                        .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
+                        .number => |lhs| switch(boxed_rhs) {
+                            .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
+                            .number => |rhs|  self.push(Value.NumberValue(lhs - rhs)),
+                        }
+                    }
                 },
                 .op_multiply => {
-                    self.push(self.pop() * self.pop());
+                    const boxed_lhs = self.pop();
+                    const boxed_rhs = self.pop();
+
+                    switch (boxed_lhs) {
+                        .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
+                        .number => |lhs| switch(boxed_rhs) {
+                            .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
+                            .number => |rhs|  self.push(Value.NumberValue(lhs * rhs)),
+                        }
+                    }
                 },
                 .op_divide => {
-                    self.push(self.pop() / self.pop());
+                    const boxed_lhs = self.pop();
+                    const boxed_rhs = self.pop();
+
+                    switch (boxed_lhs) {
+                        .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
+                        .number => |lhs| switch(boxed_rhs) {
+                            .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
+                            .number => |rhs|  self.push(Value.NumberValue(lhs / rhs)),
+                        }
+                    }
                 },
                 .op_return => {
-                    debug.printValue(self.pop());
+                    printValue(self.pop());
                     std.debug.print("\n", .{});
 
                     return;
@@ -86,12 +129,12 @@ pub const Vm = struct {
         self.stack_top = 0;
     }
 
-    pub fn push(self: *Self, value: Value) void {
+    pub inline fn push(self: *Self, value: Value) void {
         self.stack[self.stack_top] = value;
         self.stack_top += 1;
     }
 
-    pub fn pop(self: *Self) Value {
+    pub inline fn pop(self: *Self) Value {
         self.stack_top -= 1;
         return self.stack[self.stack_top];
     }
@@ -106,5 +149,15 @@ pub const Vm = struct {
         const constant = self.chunk.constants.items[self.chunk.code.items[self.ip]];
         self.ip += 1;
         return constant;
+    }
+
+    fn runtimeError(self: *Self, comptime message: []const u8, args: anytype) void {
+        const err_writer = std.io.getStdErr().writer();
+
+        err_writer.print(message ++ "\n", args) catch {};
+        
+        err_writer.print("[line {d}] in script.\n", .{self.chunk.lines.items[self.ip]}) catch {};
+        
+        self.resetStack();
     }
 };
