@@ -203,44 +203,40 @@ pub const Scanner = struct {
         };
     }
 
-    fn identifierType(self: *Scanner) TokenType {
-        return switch (self.peek()) {
-            'a' => self.checkKeyword(1, "nd", TokenType.And),
-            'c' => self.checkKeyword(1, "lass", TokenType.Class),
-            'e' => self.checkKeyword(1, "lse", TokenType.Else),
-            'i' => self.checkKeyword(1, "f", TokenType.If),
-            'n' => self.checkKeyword(1, "il", TokenType.Nil),
-            'o' => self.checkKeyword(1, "r", TokenType.Or),
-            'p' => self.checkKeyword(1, "rint", TokenType.Print),
-            'r' => self.checkKeyword(1, "eturn", TokenType.Return),
-            's' => self.checkKeyword(1, "uper", TokenType.Super),
-            'v' => self.checkKeyword(1, "ar", TokenType.Var),
-            'w' => self.checkKeyword(1, "hile", TokenType.While),
-            'f' => {
-                return switch (self.peekNext()) {
-                    'a' => self.checkKeyword(2, "lse", TokenType.False),
-                    'o' => self.checkKeyword(2, "r", TokenType.For),
-                    'u' => self.checkKeyword(2, "n", TokenType.Fun),
-                    else => TokenType.Identifier,
-                };
+    fn identifierType(self: *Self) TokenType {
+        return switch (self.source[self.start]) {
+            'a' => self.checkKeyword("and", .And),
+            'c' => self.checkKeyword("class", .Class),
+            'e' => self.checkKeyword("else", .Else),
+            'f' => switch (self.source[self.start + 1]) {
+                'a' => self.checkKeyword("false", .False),
+                'o' => self.checkKeyword("for", .For),
+                'u' => self.checkKeyword("fun", .Fun),
+                else => .Identifier,
             },
-            't' => {
-                return switch (self.peekNext()) {
-                    'h' => self.checkKeyword(2, "is", TokenType.This),
-                    'r' => self.checkKeyword(2, "ue", TokenType.True),
-                    else => TokenType.Identifier,
-                };
+            'i' => self.checkKeyword("if", .If),
+            'n' => self.checkKeyword("nil", .Nil),
+            'o' => self.checkKeyword("or", .Or),
+            'p' => self.checkKeyword("print", .Print),
+            'r' => self.checkKeyword("return", .Return),
+            's' => self.checkKeyword("super", .Super),
+            't' => switch (self.source[self.start + 1]) {
+                'h' => self.checkKeyword("this", .This),
+                'r' => self.checkKeyword("true", .True),
+                else => .Identifier,
             },
-            else => TokenType.Identifier,
+            'v' => self.checkKeyword("var", .Var),
+            'w' => self.checkKeyword("while", .While),
+            else => return .Identifier,
         };
     }
 
-    fn checkKeyword(self: *Scanner, offset: usize, str: []const u8, token_type: TokenType) TokenType {
-        if (self.current != str.len + offset) return TokenType.Identifier;
-        
-        const sourceSlice = self.source[offset..self.current];
-        std.debug.assert(sourceSlice.len == str.len);
-        return if (std.mem.eql(u8, sourceSlice, str)) token_type else TokenType.Identifier;
+    fn checkKeyword(self: *Self, keyword: []const u8, ty: TokenType) TokenType {
+        if (std.mem.eql(u8, keyword, self.source[self.start..self.current])) {
+            return ty;
+        }
+
+        return .Identifier;
     }
 };
 
