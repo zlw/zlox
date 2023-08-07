@@ -57,14 +57,10 @@ pub const Vm = struct {
             const instruction = self.readInstruction();
 
             switch (instruction) {
-                .op_constant => {
-                    self.push(self.readConstant());
-                },
-                .op_nil => {
-                    self.push(Value.NilValue());
-                },
-                .op_true => { self.push(Value.BooleanValue(true)); },
-                .op_false =>  { self.push(Value.BooleanValue(false)); },
+                .op_constant => self.push(self.readConstant()),
+                .op_nil => self.push(Value.NilValue()),
+                .op_true => self.push(Value.BooleanValue(true)),
+                .op_false => self.push(Value.BooleanValue(false)),
                 .op_negate => {
                     const boxed = self.pop();
 
@@ -73,18 +69,10 @@ pub const Vm = struct {
                         .number => |val| self.push(Value.NumberValue(-val)),
                     }
                 },
-                .op_add => {
-                    self.binaryOp(.add);
-                },
-                .op_subtract => {
-                    self.binaryOp(.sub);
-                },
-                .op_multiply => {
-                    self.binaryOp(.mul);
-                },
-                .op_divide => {
-                    self.binaryOp(.div);
-                },
+                .op_add => self.binaryOp(.add),
+                .op_subtract => self.binaryOp(.sub),
+                .op_multiply => self.binaryOp(.mul),
+                .op_divide => self.binaryOp(.div),
                 .op_return => {
                     printValue(self.pop());
                     std.debug.print("\n", .{});
