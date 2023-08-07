@@ -8,6 +8,8 @@ const Value = @import("./value.zig").Value;
 
 const errout = std.io.getStdErr().writer();
 
+const debug_rule_selection = false;
+
 const CompileError = error{CompileError,TooManyConstants};
 
 pub fn compile(source: []const u8, chunk: *Chunk) CompileError!void {
@@ -56,7 +58,11 @@ const ParseRule = struct {
 };
 
 fn getRule(token_type: TokenType) ParseRule {
-    return switch (token_type) {
+    if (comptime debug_rule_selection) {
+        std.debug.print("{}\n", .{token_type});
+    }
+
+    const rule = switch (token_type) {
         .LeftParen => ParseRule.init(Parser.grouping, null, .precNone),
         .RightParen => ParseRule.init(null, null, .precNone),
         .LeftBrace => ParseRule.init(null, null, .precNone),
@@ -98,6 +104,12 @@ fn getRule(token_type: TokenType) ParseRule {
         .Error => ParseRule.init(null, null, .precNone),
         .Eof => ParseRule.init(null, null, .precNone),
     };
+
+    if (comptime debug_rule_selection) {
+        std.debug.print("{}\n", .{rule});
+    }
+
+    return rule;
 }
 
 const Parser = struct {
@@ -184,8 +196,6 @@ const Parser = struct {
 
     fn parsePrecendece(self: *Self, precedence: Precedence) CompileError!void {
         try self.advance();
-        std.debug.print("{}\n", .{self.previous.token_type});
-        std.debug.print("{}\n", .{getRule(self.previous.token_type)});
         const prefixRule = getRule(self.previous.token_type).prefix orelse {
             self.err("Expect expression.");
             return CompileError.CompileError;
