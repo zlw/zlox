@@ -82,17 +82,17 @@ fn getRule(token_type: TokenType) ParseRule {
         .And => ParseRule.init(null, null, .precNone),
         .Class => ParseRule.init(null, null, .precNone),
         .Else => ParseRule.init(null, null, .precNone),
-        .False => ParseRule.init(null, null, .precNone),
+        .False => ParseRule.init(Parser.literal, null, .precNone),
         .For => ParseRule.init(null, null, .precNone),
         .Fun => ParseRule.init(null, null, .precNone),
         .If => ParseRule.init(null, null, .precNone),
-        .Nil => ParseRule.init(null, null, .precNone),
+        .Nil => ParseRule.init(Parser.literal, null, .precNone),
         .Or => ParseRule.init(null, null, .precNone),
         .Print => ParseRule.init(null, null, .precNone),
         .Return => ParseRule.init(null, null, .precNone),
         .Super => ParseRule.init(null, null, .precNone),
         .This => ParseRule.init(null, null, .precNone),
-        .True => ParseRule.init(null, null, .precNone),
+        .True => ParseRule.init(Parser.literal, null, .precNone),
         .Var => ParseRule.init(null, null, .precNone),
         .While => ParseRule.init(null, null, .precNone),
         .Error => ParseRule.init(null, null, .precNone),
@@ -173,8 +173,19 @@ const Parser = struct {
         }
     }
 
+    fn literal(self: *Self) !void {
+        switch(self.previous.token_type) {
+            .False => self.emitByte(OpCode.op_false.toU8()),
+            .True => self.emitByte(OpCode.op_true.toU8()),
+            .Nil => self.emitByte(OpCode.op_nil.toU8()),
+            else => unreachable,
+        }
+    }
+
     fn parsePrecendece(self: *Self, precedence: Precedence) CompileError!void {
         try self.advance();
+        std.debug.print("{}\n", .{self.previous.token_type});
+        std.debug.print("{}\n", .{getRule(self.previous.token_type)});
         const prefixRule = getRule(self.previous.token_type).prefix orelse {
             self.err("Expect expression.");
             return CompileError.CompileError;

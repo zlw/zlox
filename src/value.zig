@@ -16,7 +16,7 @@ pub const Value = union(enum) {
     }
 
     pub inline fn NilValue() Self {
-        return Value{ .nil = null };
+        return Value.nil;
     }
 };
 

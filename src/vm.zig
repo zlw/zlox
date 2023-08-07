@@ -60,6 +60,11 @@ pub const Vm = struct {
                 .op_constant => {
                     self.push(self.readConstant());
                 },
+                .op_nil => {
+                    self.push(Value.NilValue());
+                },
+                .op_true => { self.push(Value.BooleanValue(true)); },
+                .op_false =>  { self.push(Value.BooleanValue(false)); },
                 .op_negate => {
                     const boxed = self.pop();
 

@@ -10,6 +10,9 @@ pub const OpCode = enum(u8) {
     const Self = @This();
 
     op_constant,
+    op_nil,
+    op_true,
+    op_false,
     op_negate,
     op_add,
     op_subtract,
