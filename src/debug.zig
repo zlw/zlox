@@ -41,6 +41,7 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) void {
         .op_false => simpleInstruction("OP_FALSE"),
         .op_true => simpleInstruction("OP_TRUE"),
         .op_negate   => simpleInstruction("OP_NEGATE"),
+        .op_not => simpleInstruction("OP_NOT"),
         .op_add      => simpleInstruction("OP_ADD"),
         .op_subtract => simpleInstruction("OP_SUBTRACT"),
         .op_multiply => simpleInstruction("OP_MULTIPLY"),

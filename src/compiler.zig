@@ -74,7 +74,7 @@ fn getRule(token_type: TokenType) ParseRule {
         .Semicolon => ParseRule.init(null, null, .precNone),
         .Slash => ParseRule.init(null, Parser.binary, .precFactor),
         .Star => ParseRule.init(null, Parser.binary, .precFactor),
-        .Bang => ParseRule.init(null, null, .precNone),
+        .Bang => ParseRule.init(Parser.unary, null, .precNone),
         .BangEqual => ParseRule.init(null, null, .precNone),
         .Equal => ParseRule.init(null, null, .precNone),
         .EqualEqual => ParseRule.init(null, null, .precNone),
@@ -166,6 +166,7 @@ const Parser = struct {
         const operatorType = self.previous.token_type;
         try self.parsePrecendece(.precUnary);
         switch (operatorType) {
+            .Bang => self.emitByte(OpCode.op_not.toU8()),
             .Minus => self.emitByte(OpCode.op_negate.toU8()),
             else => unreachable,
         }

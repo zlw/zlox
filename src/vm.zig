@@ -69,6 +69,7 @@ pub const Vm = struct {
                         .number => |val| self.push(Value.NumberValue(-val)),
                     }
                 },
+                .op_not => self.push(Value.BooleanValue(isFalsey(self.pop()))),
                 .op_add => self.binaryOp(.add),
                 .op_subtract => self.binaryOp(.sub),
                 .op_multiply => self.binaryOp(.mul),
@@ -137,3 +138,11 @@ pub const Vm = struct {
         }
     }
 };
+
+fn isFalsey(value: Value) bool {
+    return switch (value) {
+        .nil => true,
+        .boolean => |val| !val,
+        else => false
+    };
+}
