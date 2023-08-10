@@ -18,6 +18,14 @@ pub const Value = union(enum) {
     pub inline fn NilValue() Self {
         return Value.nil;
     }
+
+    pub fn equal(self: Self, other: Self) bool {
+        return switch (self) {
+            .nil => other == .nil,
+            .boolean => |o| other == .boolean and o == other.boolean,
+            .number => |o| other == .number and o == other.number,
+        };
+    }
 };
 
 pub fn printValue(boxed: Value) void {

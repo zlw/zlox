@@ -19,6 +19,7 @@ pub const InterpretError = error{
 };
 
 const BinaryOp = enum { add, sub, mul, div };
+const CompOp = enum { gt, lt };
 
 pub const Vm = struct {
     const Self = @This();
@@ -61,6 +62,14 @@ pub const Vm = struct {
                 .op_nil => self.push(Value.NilValue()),
                 .op_true => self.push(Value.BooleanValue(true)),
                 .op_false => self.push(Value.BooleanValue(false)),
+                .op_equal => {
+                    const boxed_lhs = self.pop();
+                    const boxed_rhs = self.pop();
+
+                    self.push(Value.BooleanValue(boxed_lhs.equal(boxed_rhs)));
+                },
+                .op_greater => self.compOp(.gt),
+                .op_less => self.compOp(.lt),
                 .op_negate => {
                     const boxed = self.pop();
 
@@ -124,17 +133,40 @@ pub const Vm = struct {
         const boxed_lhs = self.pop();
         const boxed_rhs = self.pop();
 
-        switch (boxed_lhs) {
-            .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
-            .number => |lhs| switch (boxed_rhs) {
-                .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
-                .number => |rhs| self.push(Value.NumberValue(switch (op) {
-                    .add => lhs + rhs,
-                    .sub => lhs - rhs,
-                    .mul => lhs * rhs,
-                    .div => lhs / rhs,
-                })),
-            },
+        if (boxed_lhs == .number and boxed_rhs == .number) {
+            const lhs = boxed_lhs.number;
+            const rhs = boxed_rhs.number;
+
+            const result = switch (op) {
+                .add => lhs + rhs,
+                .sub => lhs - rhs,
+                .mul => lhs * rhs,
+                .div => lhs / rhs,
+            };
+            
+            self.push(Value.NumberValue(result));
+
+        } else {
+            self.runtimeError("Operand must be a number", .{});
+        }
+    }
+
+    inline fn compOp(self: *Self, op: CompOp) void {
+        const boxed_lhs = self.pop();
+        const boxed_rhs = self.pop();
+
+        if (boxed_lhs == .number and boxed_rhs == .number) {
+            const lhs = boxed_lhs.number;
+            const rhs = boxed_rhs.number;
+
+            const result = switch (op) {
+                .gt => lhs > rhs,
+                .lt => lhs < rhs,
+            };
+            
+            self.push(Value.BooleanValue(result));
+        } else {
+            self.runtimeError("Operand must be a number", .{});
         }
     }
 };
@@ -143,6 +175,6 @@ fn isFalsey(value: Value) bool {
     return switch (value) {
         .nil => true,
         .boolean => |val| !val,
-        else => false
+        else => false,
     };
 }
