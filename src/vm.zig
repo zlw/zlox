@@ -9,8 +9,8 @@ const printValue = @import("./value.zig").printValue;
 
 const compile = @import("./compiler.zig").compile;
 
-const debug_trace_execution = true;
-const debug_stack_execution = false;
+const debug_trace_execution = debug.debug_trace_execution;
+const debug_stack_execution = debug.debug_stack_execution;
 const stack_max = 256;
 
 pub const InterpretError = error{

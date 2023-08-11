@@ -8,7 +8,7 @@ const Value = @import("./value.zig").Value;
 
 const errout = std.io.getStdErr().writer();
 
-const debug_rule_selection = false;
+const debug_rule_selection = @import("./debug.zig").debug_rule_selection;
 
 const CompileError = error{CompileError,TooManyConstants};
 
