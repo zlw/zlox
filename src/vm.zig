@@ -136,22 +136,29 @@ pub const Vm = struct {
         const boxed_lhs = self.pop();
         const boxed_rhs = self.pop();
 
-        if (boxed_lhs == .number and boxed_rhs == .number) {
-            const lhs = boxed_lhs.number;
-            const rhs = boxed_rhs.number;
+        switch (boxed_lhs) {
+            .boolean, .nil => {
+                self.runtimeError("Operand must be a number", .{});
+                return InterpretError.RuntimeError;
+            },
+            .number => |lhs| {
+                switch (boxed_rhs) {
+                    .boolean, .nil => {
+                        self.runtimeError("Operand must be a number", .{});
+                        return InterpretError.RuntimeError;
+                    },
+                    .number => |rhs| {
+                        const result = switch (op) {
+                            .add => lhs + rhs,
+                            .sub => lhs - rhs,
+                            .mul => lhs * rhs,
+                            .div => lhs / rhs,
+                        };
 
-            const result = switch (op) {
-                .add => lhs + rhs,
-                .sub => lhs - rhs,
-                .mul => lhs * rhs,
-                .div => lhs / rhs,
-            };
-            
-            self.push(Value.NumberValue(result));
-
-        } else {
-            self.runtimeError("Operand must be a number", .{});
-            return InterpretError.RuntimeError;
+                        self.push(Value.NumberValue(result));
+                    },
+                }
+            },
         }
     }
 
@@ -159,19 +166,27 @@ pub const Vm = struct {
         const boxed_lhs = self.pop();
         const boxed_rhs = self.pop();
 
-        if (boxed_lhs == .number and boxed_rhs == .number) {
-            const lhs = boxed_lhs.number;
-            const rhs = boxed_rhs.number;
+        switch (boxed_lhs) {
+            .boolean, .nil => {
+                self.runtimeError("Operand must be a number", .{});
+                return InterpretError.RuntimeError;
+            },
+            .number => |lhs| {
+                switch (boxed_rhs) {
+                    .boolean, .nil => {
+                        self.runtimeError("Operand must be a number", .{});
+                        return InterpretError.RuntimeError;
+                    },
+                    .number => |rhs| {
+                        const result = switch (op) {
+                            .gt => lhs > rhs,
+                            .lt => lhs < rhs,
+                        };
 
-            const result = switch (op) {
-                .gt => lhs > rhs,
-                .lt => lhs < rhs,
-            };
-            
-            self.push(Value.BooleanValue(result));
-        } else {
-            self.runtimeError("Operand must be a number", .{});
-            return InterpretError.RuntimeError;
+                        self.push(Value.BooleanValue(result));
+                    },
+                }
+            },
         }
     }
 };
