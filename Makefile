@@ -20,3 +20,6 @@ release:
 
 test: build
 	zig run util/test.zig -- zig-out/bin/zlox $(TEST_FILES)
+
+repl: build
+	./zig-out/bin/zlox
