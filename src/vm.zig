@@ -57,7 +57,7 @@ pub const Vm = struct {
 
             const instruction = self.readInstruction();
 
-            switch (instruction) {
+            try switch (instruction) {
                 .op_constant => self.push(self.readConstant()),
                 .op_nil => self.push(Value.NilValue()),
                 .op_true => self.push(Value.BooleanValue(true)),
@@ -74,7 +74,10 @@ pub const Vm = struct {
                     const boxed = self.pop();
 
                     switch (boxed) {
-                        .boolean, .nil => self.runtimeError("Operand must be a number", .{}),
+                        .boolean, .nil => {
+                            self.runtimeError("Operand must be a number", .{});
+                            return InterpretError.RuntimeError;
+                        },
                         .number => |val| self.push(Value.NumberValue(-val)),
                     }
                 },
@@ -89,7 +92,7 @@ pub const Vm = struct {
 
                     return;
                 },
-            }
+            };
         }
     }
 
@@ -129,7 +132,7 @@ pub const Vm = struct {
         self.resetStack();
     }
 
-    inline fn binaryOp(self: *Self, op: BinaryOp) void {
+    inline fn binaryOp(self: *Self, op: BinaryOp) InterpretError!void {
         const boxed_lhs = self.pop();
         const boxed_rhs = self.pop();
 
@@ -148,10 +151,11 @@ pub const Vm = struct {
 
         } else {
             self.runtimeError("Operand must be a number", .{});
+            return InterpretError.RuntimeError;
         }
     }
 
-    inline fn compOp(self: *Self, op: CompOp) void {
+    inline fn compOp(self: *Self, op: CompOp) InterpretError!void {
         const boxed_lhs = self.pop();
         const boxed_rhs = self.pop();
 
@@ -167,6 +171,7 @@ pub const Vm = struct {
             self.push(Value.BooleanValue(result));
         } else {
             self.runtimeError("Operand must be a number", .{});
+            return InterpretError.RuntimeError;
         }
     }
 };
