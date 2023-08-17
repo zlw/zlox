@@ -5,16 +5,18 @@ const TokenType = @import("./scanner.zig").TokenType;
 const Chunk = @import("./chunk.zig").Chunk;
 const OpCode = @import("./chunk.zig").OpCode;
 const Value = @import("./value.zig").Value;
+const Object = @import("./object.zig").Object;
+const Vm = @import("./vm.zig").Vm;
 
 const errout = std.io.getStdErr().writer();
 
 const debug_rule_selection = @import("./debug.zig").debug_rule_selection;
 
-const CompileError = error{CompileError,TooManyConstants};
+const CompileError = error{ CompileError, TooManyConstants };
 
-pub fn compile(source: []const u8, chunk: *Chunk) CompileError!void {
+pub fn compile(vm: *Vm, source: []const u8, chunk: *Chunk) CompileError!void {
     var scanner = Scanner.init(source);
-    var parser = Parser.init(&scanner, chunk);
+    var parser = Parser.init(vm, &scanner, chunk);
 
     try parser.advance();
     try parser.expression();
@@ -41,7 +43,7 @@ const Precedence = enum {
     precPrimary,
 };
 
-const ParseFn = *const fn(*Parser) CompileError!void;
+const ParseFn = *const fn (*Parser) CompileError!void;
 
 const ParseRule = struct {
     prefix: ?ParseFn,
@@ -83,7 +85,7 @@ fn getRule(token_type: TokenType) ParseRule {
         .Less => ParseRule.init(null, Parser.binary, .precComparison),
         .LessEqual => ParseRule.init(null, Parser.binary, .precComparison),
         .Identifier => ParseRule.init(null, null, .precNone),
-        .String => ParseRule.init(null, null, .precNone),
+        .String => ParseRule.init(Parser.string, null, .precNone),
         .Number => ParseRule.init(Parser.number, null, .precNone),
         .And => ParseRule.init(null, null, .precNone),
         .Class => ParseRule.init(null, null, .precNone),
@@ -115,6 +117,7 @@ fn getRule(token_type: TokenType) ParseRule {
 const Parser = struct {
     const Self = @This();
 
+    vm: *Vm,
     current: Token = undefined,
     previous: Token = undefined,
     scanner: *Scanner,
@@ -122,8 +125,8 @@ const Parser = struct {
     hadError: bool = false,
     panicMode: bool = false,
 
-    pub fn init(scanner: *Scanner, chunk: *Chunk) Self {
-        return Self{ .scanner = scanner, .chunk = chunk };
+    pub fn init(vm: *Vm, scanner: *Scanner, chunk: *Chunk) Self {
+        return Self{ .vm = vm, .scanner = scanner, .chunk = chunk };
     }
 
     pub fn advance(self: *Self) CompileError!void {
@@ -155,6 +158,13 @@ const Parser = struct {
     fn number(self: *Self) !void {
         const value = std.fmt.parseFloat(f64, self.previous.lexeme) catch unreachable;
         try self.emitConstant(Value.NumberValue(value));
+    }
+
+    fn string(self: *Self) !void {
+        const lexeme = self.previous.lexeme;
+        const value = Object.String.copy(self.vm.allocator, lexeme[1..lexeme.len-1]);
+        
+        try self.emitConstant(Value.ObjectValue(&value.object));
     }
 
     fn grouping(self: *Self) !void {
@@ -193,7 +203,7 @@ const Parser = struct {
     }
 
     fn literal(self: *Self) !void {
-        switch(self.previous.token_type) {
+        switch (self.previous.token_type) {
             .False => self.emitByte(OpCode.op_false.toU8()),
             .True => self.emitByte(OpCode.op_true.toU8()),
             .Nil => self.emitByte(OpCode.op_nil.toU8()),
@@ -213,7 +223,7 @@ const Parser = struct {
         while (@enumToInt(precedence) <= @enumToInt(getRule(self.current.token_type).precedence)) {
             try self.advance();
             const rule = getRule(self.previous.token_type);
-            
+
             const infixRule = rule.infix orelse {
                 self.err("Unreachable????");
                 return CompileError.CompileError;
@@ -280,7 +290,7 @@ const Parser = struct {
     }
 
     pub fn endCompiler(self: *Self) void {
-        self.emitReturn();        
+        self.emitReturn();
     }
 
     fn emitReturn(self: *Self) void {

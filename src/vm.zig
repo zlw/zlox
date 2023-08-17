@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-
+const Object = @import("./object.zig");
 const debug = @import("./debug.zig");
 const Chunk = @import("./chunk.zig").Chunk;
 const OpCode = @import("./chunk.zig").OpCode;
@@ -38,7 +38,7 @@ pub const Vm = struct {
         var chunk = Chunk.init(self.allocator);
         defer chunk.deinit();
 
-        compile(source, &chunk) catch return InterpretError.CompileError;
+        compile(self, source, &chunk) catch return InterpretError.CompileError;
 
         self.chunk = &chunk;
         self.ip = 0;
@@ -74,7 +74,7 @@ pub const Vm = struct {
                     const boxed = self.pop();
 
                     switch (boxed) {
-                        .boolean, .nil => {
+                        .boolean, .nil, .object => {
                             self.runtimeError("Operand must be a number", .{});
                             return InterpretError.RuntimeError;
                         },
@@ -137,13 +137,13 @@ pub const Vm = struct {
         const boxed_rhs = self.pop();
 
         switch (boxed_lhs) {
-            .boolean, .nil => {
+            .boolean, .nil, .object => {
                 self.runtimeError("Operand must be a number", .{});
                 return InterpretError.RuntimeError;
             },
             .number => |lhs| {
                 switch (boxed_rhs) {
-                    .boolean, .nil => {
+                    .boolean, .nil, .object => {
                         self.runtimeError("Operand must be a number", .{});
                         return InterpretError.RuntimeError;
                     },
@@ -167,13 +167,13 @@ pub const Vm = struct {
         const boxed_rhs = self.pop();
 
         switch (boxed_lhs) {
-            .boolean, .nil => {
+            .boolean, .nil, .object => {
                 self.runtimeError("Operand must be a number", .{});
                 return InterpretError.RuntimeError;
             },
             .number => |lhs| {
                 switch (boxed_rhs) {
-                    .boolean, .nil => {
+                    .boolean, .nil, .object => {
                         self.runtimeError("Operand must be a number", .{});
                         return InterpretError.RuntimeError;
                     },
