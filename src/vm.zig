@@ -134,18 +134,18 @@ pub const Vm = struct {
     }
 
     inline fn binaryOp(self: *Self, op: BinaryOp) InterpretError!void {
-        const boxed_lhs = self.pop();
         const boxed_rhs = self.pop();
+        const boxed_lhs = self.pop();
 
         switch (boxed_lhs) {
             .boolean, .nil => {
-                self.runtimeError("Operand must be a number/object", .{});
+                self.runtimeError("Operand must be a number or an object", .{});
                 return InterpretError.RuntimeError;
             },
             .number, => |lhs| {
                 switch (boxed_rhs) {
                     .boolean, .nil, .object => {
-                        self.runtimeError("Operand must be a number/object", .{});
+                        self.runtimeError("Operand must be a number", .{});
                         return InterpretError.RuntimeError;
                     },
                     .number => |rhs| {
@@ -163,13 +163,13 @@ pub const Vm = struct {
             .object => |lhs| {
                 switch (boxed_rhs) {
                     .boolean, .nil, .number => {
-                        self.runtimeError("Operand must be a number/object", .{});
+                        self.runtimeError("Operand must be an object", .{});
                         return InterpretError.RuntimeError;
                     },
                     .object => |rhs| {
                         switch (op) {
                             .add => {
-                                const heap = std.mem.concat(self.allocator, u8, &[_][]const u8{ rhs.asString().chars, lhs.asString().chars }) catch unreachable;
+                                const heap = std.mem.concat(self.allocator, u8, &[_][]const u8{ lhs.asString().chars, rhs.asString().chars }) catch unreachable;
                                 const obj  = Object.String.take(self.allocator, heap);
 
                                 self.push(Value.ObjectValue(&obj.object));
