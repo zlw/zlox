@@ -9,9 +9,9 @@ pub fn DynamicArray(comptime T: type) type {
         count: usize,
         capacity: usize,
         items: []T,
-        allocator: *Allocator,
+        allocator: Allocator,
 
-        pub fn init(allocator: *Allocator) Self {
+        pub fn init(allocator: Allocator) Self {
             return Self{
                 .count = 0,
                 .capacity = 0,

@@ -51,7 +51,7 @@ pub const Chunk = struct {
     constants: ValueArray,
     lines:     LinesArray,
 
-    pub fn init(allocator: *Allocator) Chunk {
+    pub fn init(allocator: Allocator) Chunk {
         return Self{
             .code = BytesArray.init(allocator),
             .constants = ValueArray.init(allocator),

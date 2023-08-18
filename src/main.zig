@@ -20,7 +20,7 @@ pub fn main() anyerror!u8 {
     const args = try process.argsAlloc(allocator);
     defer process.argsFree(allocator, args);
 
-    var vm = Vm.init(&allocator);
+    var vm = Vm.init(allocator);
 
     switch (args.len) {
         1 => repl(&vm),

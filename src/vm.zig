@@ -1,6 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Object = @import("./object.zig");
+const Object = @import("./object.zig").Object;
+const String = Object.String;
 const debug = @import("./debug.zig");
 const Chunk = @import("./chunk.zig").Chunk;
 const OpCode = @import("./chunk.zig").OpCode;
@@ -28,9 +29,9 @@ pub const Vm = struct {
     ip: usize = 0,
     stack: [stack_max]Value = undefined,
     stack_top: usize = 0,
-    allocator: *Allocator,
+    allocator: Allocator,
 
-    pub fn init(allocator: *Allocator) Self {
+    pub fn init(allocator: Allocator) Self {
         return Self{ .allocator = allocator };
     }
 
@@ -137,14 +138,14 @@ pub const Vm = struct {
         const boxed_rhs = self.pop();
 
         switch (boxed_lhs) {
-            .boolean, .nil, .object => {
-                self.runtimeError("Operand must be a number", .{});
+            .boolean, .nil => {
+                self.runtimeError("Operand must be a number/object", .{});
                 return InterpretError.RuntimeError;
             },
-            .number => |lhs| {
+            .number, => |lhs| {
                 switch (boxed_rhs) {
                     .boolean, .nil, .object => {
-                        self.runtimeError("Operand must be a number", .{});
+                        self.runtimeError("Operand must be a number/object", .{});
                         return InterpretError.RuntimeError;
                     },
                     .number => |rhs| {
@@ -156,6 +157,25 @@ pub const Vm = struct {
                         };
 
                         self.push(Value.NumberValue(result));
+                    },
+                }
+            },
+            .object => |lhs| {
+                switch (boxed_rhs) {
+                    .boolean, .nil, .number => {
+                        self.runtimeError("Operand must be a number/object", .{});
+                        return InterpretError.RuntimeError;
+                    },
+                    .object => |rhs| {
+                        switch (op) {
+                            .add => {
+                                const heap = std.mem.concat(self.allocator, u8, &[_][]const u8{ rhs.asString().chars, lhs.asString().chars }) catch unreachable;
+                                const obj  = Object.String.take(self.allocator, heap);
+
+                                self.push(Value.ObjectValue(&obj.object));
+                            },
+                            else => unreachable,
+                        }
                     },
                 }
             },
