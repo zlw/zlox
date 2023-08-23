@@ -4,9 +4,10 @@ const Chunk  = @import("./chunk.zig").Chunk;
 const OpCode = @import("./chunk.zig").OpCode;
 const Value  = @import("./value.zig").Value;
 
-pub const debug_trace_execution = false;
+pub const debug_trace_execution = true;
 pub const debug_stack_execution = false;
 pub const debug_rule_selection = false;
+pub const debug_garbage_collection = true;
 
 pub fn disassembleChunk(chunk: *Chunk, comptime name: []const u8) void {
     std.debug.print("=== {s} ===\n", .{name});

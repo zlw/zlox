@@ -8,11 +8,19 @@ pub const ObjectType = enum { String };
 
 pub const Object = struct {
     objectType: ObjectType,
+    next: ?*Object,
 
     pub fn create(vm: *Vm, comptime T: type, objectType: ObjectType) *T {
         const ptrT = vm.allocator.create(T) catch @panic("Error creating Obj\n");
-        ptrT.object = Object{ .objectType = objectType };
+        ptrT.object = Object{ .objectType = objectType, .next = vm.objects };
+        vm.objects = &ptrT.object;
         return ptrT;
+    }
+
+    pub fn destroy(self: *Object, vm: *Vm) void {
+        switch(self.objectType) {
+            .String => self.asString().destroy(vm),
+        }
     }
 
     pub inline fn asString(self: *Object) *String {
@@ -45,6 +53,10 @@ pub const Object = struct {
             str.chars = bytes;
             return str;
         }
-    };
 
+        fn destroy(self: *String, vm: *Vm) void {
+            vm.allocator.free(self.chars);
+            vm.allocator.destroy(self);
+        }
+    };
 };

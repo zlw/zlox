@@ -21,6 +21,7 @@ pub fn main() anyerror!u8 {
     defer process.argsFree(allocator, args);
 
     var vm = Vm.init(allocator);
+    defer vm.deinit();
 
     switch (args.len) {
         1 => repl(&vm),

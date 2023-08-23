@@ -12,6 +12,7 @@ const compile = @import("./compiler.zig").compile;
 
 const debug_trace_execution = debug.debug_trace_execution;
 const debug_stack_execution = debug.debug_stack_execution;
+const debug_garbace_collection = debug.debug_garbage_collection;
 const stack_max = 256;
 
 pub const InterpretError = error{
@@ -29,10 +30,15 @@ pub const Vm = struct {
     ip: usize = 0,
     stack: [stack_max]Value = undefined,
     stack_top: usize = 0,
+    objects: ?*Object = null,
     allocator: Allocator,
 
     pub fn init(allocator: Allocator) Self {
         return Self{ .allocator = allocator };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.freeObjects();
     }
 
     pub fn interpret(self: *Self, source: []const u8) InterpretError!void {
@@ -207,6 +213,24 @@ pub const Vm = struct {
                     },
                 }
             },
+        }
+    }
+
+    fn freeObjects(self: *Self) void {
+        var obj = self.objects;
+        var total_objects: u64 = 0;
+        
+        while (obj) |object| { 
+            if (comptime debug_garbace_collection) {
+                total_objects += 1;
+            }
+            const next = object.next;
+            object.destroy(self);
+            obj = next;
+        }
+        
+        if (comptime debug_garbace_collection) {
+            std.debug.print("Objects freed {d}\n", .{total_objects});
         }
     }
 };
