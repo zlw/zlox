@@ -170,7 +170,7 @@ pub const Vm = struct {
                         switch (op) {
                             .add => {
                                 const heap = std.mem.concat(self.allocator, u8, &[_][]const u8{ lhs.asString().chars, rhs.asString().chars }) catch unreachable;
-                                const obj  = Object.String.take(self.allocator, heap);
+                                const obj  = Object.String.take(self, heap);
 
                                 self.push(Value.ObjectValue(&obj.object));
                             },

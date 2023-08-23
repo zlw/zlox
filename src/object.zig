@@ -9,8 +9,8 @@ pub const ObjectType = enum { String };
 pub const Object = struct {
     objectType: ObjectType,
 
-    pub fn create(allocator: Allocator, comptime T: type, objectType: ObjectType) *T {
-        const ptrT = allocator.create(T) catch @panic("Error creating Obj\n");
+    pub fn create(vm: *Vm, comptime T: type, objectType: ObjectType) *T {
+        const ptrT = vm.allocator.create(T) catch @panic("Error creating Obj\n");
         ptrT.object = Object{ .objectType = objectType };
         return ptrT;
     }
@@ -30,18 +30,18 @@ pub const Object = struct {
         length: usize,
         chars: []const u8,
 
-        pub fn copy(allocator: Allocator, chars: []const u8) *String {
-            const heap = allocator.alloc(u8, chars.len) catch @panic("Error copying String\n");
+        pub fn copy(vm: *Vm, chars: []const u8) *String {
+            const heap = vm.allocator.alloc(u8, chars.len) catch @panic("Error copying String\n");
             std.mem.copy(u8, heap, chars);
-            return allocate(allocator, heap);
+            return allocate(vm, heap);
         }
 
-        pub fn take(allocator: Allocator, chars: []const u8) *String {
-            return allocate(allocator, chars);
+        pub fn take(vm: *Vm, chars: []const u8) *String {
+            return allocate(vm, chars);
         }
 
-        fn allocate(allocator: Allocator, bytes: []const u8) *String {
-            const str = Object.create(allocator, Self, .String);
+        fn allocate(vm: *Vm, bytes: []const u8) *String {
+            const str = Object.create(vm, Self, .String);
             str.chars = bytes;
             return str;
         }

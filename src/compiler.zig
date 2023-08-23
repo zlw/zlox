@@ -162,7 +162,7 @@ const Parser = struct {
 
     fn string(self: *Self) !void {
         const lexeme = self.previous.lexeme;
-        const value = Object.String.copy(self.vm.allocator, lexeme[1..lexeme.len-1]);
+        const value = Object.String.copy(self.vm, lexeme[1..lexeme.len-1]);
         
         try self.emitConstant(Value.ObjectValue(&value.object));
     }
