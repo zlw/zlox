@@ -163,7 +163,7 @@ const Parser = struct {
     fn string(self: *Self) !void {
         const lexeme = self.previous.lexeme;
         const value = Object.String.copy(self.vm, lexeme[1..lexeme.len-1]);
-        
+
         try self.emitConstant(Value.ObjectValue(&value.object));
     }
 
@@ -185,7 +185,7 @@ const Parser = struct {
     fn binary(self: *Self) !void {
         const operatorType = self.previous.token_type;
         const rule = getRule(operatorType);
-        try self.parsePrecendece(@intToEnum(Precedence, @enumToInt(rule.precedence) + 1));
+        try self.parsePrecendece(@enumFromInt(@intFromEnum(rule.precedence) + 1));
 
         switch (operatorType) {
             .BangEqual => self.emitBytes(OpCode.op_equal.toU8(), OpCode.op_not.toU8()),
@@ -220,7 +220,7 @@ const Parser = struct {
 
         try prefixRule(self);
 
-        while (@enumToInt(precedence) <= @enumToInt(getRule(self.current.token_type).precedence)) {
+        while (@intFromEnum(precedence) <= @intFromEnum(getRule(self.current.token_type).precedence)) {
             try self.advance();
             const rule = getRule(self.previous.token_type);
 
@@ -274,7 +274,7 @@ const Parser = struct {
             return CompileError.TooManyConstants;
         }
 
-        return @intCast(u8, constant);
+        return @as(u8, @intCast(constant));
     }
 
     pub fn emitByte(self: *Self, byte: u8) void {

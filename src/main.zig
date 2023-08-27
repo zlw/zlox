@@ -15,6 +15,10 @@ const stdin = std.io.getStdIn().reader();
 pub fn main() anyerror!u8 {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
+    defer {
+        const has_leaked = gpa.detectLeaks();
+        std.log.debug("Has leaked: {}\n", .{has_leaked});
+    }
     var allocator = gpa.allocator();
 
     const args = try process.argsAlloc(allocator);

@@ -1,6 +1,5 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const expect = std.testing.expect;
 
 pub fn DynamicArray(comptime T: type) type {
     return struct {
@@ -36,21 +35,25 @@ pub fn DynamicArray(comptime T: type) type {
             self.items[self.count] = item;
             self.count += 1;
         }
-
-        fn growCapacity(capacity: usize) usize {
-            return if (capacity < 8) 8 else capacity * 2;
-        }
     };
 }
 
+pub fn growCapacity(capacity: usize) usize {
+    return if (capacity < 8) 8 else capacity * 2;
+}
+
 test "create a DynamicArray" {
+    const expect = std.testing.expect;
+
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
-        const leaked = gpa.deinit();
-        if (leaked) expect(false) catch @panic("The list is leaking");
+        switch (gpa.deinit()) {
+            .ok => {},
+            .leak => expect(false) catch @panic("The table is leaking"),
+        }
     }
 
-    var arr = DynamicArray(u8).init(&gpa.allocator());
+    var arr = DynamicArray(u8).init(gpa.allocator());
     defer arr.deinit();
 
     arr.appendItem(5);

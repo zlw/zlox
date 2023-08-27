@@ -4,8 +4,6 @@ const Value = @import("./value.zig").Value;
 
 const Allocator = std.mem.Allocator;
 
-const expect = std.testing.expect;
-
 pub const OpCode = enum(u8) {
     const Self = @This();
 
@@ -25,11 +23,11 @@ pub const OpCode = enum(u8) {
     op_return,
 
     pub fn toU8(self: Self) u8 {
-        return @enumToInt(self);
+        return @intFromEnum(self);
     }
 
     pub fn fromU8(n: u8) Self {
-        return @intToEnum(Self, n);
+        return @enumFromInt(n);
     }
 
     pub fn operands(self: *Self) usize {
@@ -72,28 +70,32 @@ pub const Chunk = struct {
 
     pub fn addConstant(self: *Self, value: Value) !u16 {
         self.constants.appendItem(value);
-        return @intCast(u16, self.constants.count - 1);
+        return @as(u16, @intCast(self.constants.count - 1));
     }
 };
 
 test "create a Chunk with bytes only" {
+    const expect = std.testing.expect;
+
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
-        const leaked = gpa.deinit();
-        if (leaked) expect(false) catch @panic("The list is leaking");
+        switch (gpa.deinit()) {
+            .ok => {},
+            .leak => expect(false) catch @panic("The table is leaking"),
+        }
     }
 
-    var chunk = Chunk.init(&gpa.allocator());
+    var chunk = Chunk.init(gpa.allocator());
     defer chunk.deinit();
 
-    chunk.write(OpCode.op_return.toU8(), 1);
+    try chunk.write(OpCode.op_return.toU8(), 1);
     try expect(chunk.code.items[0] == OpCode.op_return.toU8());
 
-    chunk.write(OpCode.op_return.toU8(), 1);
-    chunk.write(OpCode.op_return.toU8(), 1);
-    chunk.write(OpCode.op_return.toU8(), 1);
-    chunk.write(OpCode.op_return.toU8(), 1);
-    chunk.write(OpCode.op_return.toU8(), 1);
+    try chunk.write(OpCode.op_return.toU8(), 1);
+    try chunk.write(OpCode.op_return.toU8(), 1);
+    try chunk.write(OpCode.op_return.toU8(), 1);
+    try chunk.write(OpCode.op_return.toU8(), 1);
+    try chunk.write(OpCode.op_return.toU8(), 1);
 
     try expect(chunk.code.items[4] == OpCode.op_return.toU8());
     chunk.deinit();
