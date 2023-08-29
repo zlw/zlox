@@ -189,8 +189,8 @@ pub const Vm = struct {
     }
 
     inline fn compOp(self: *Self, op: CompOp) InterpretError!void {
-        const boxed_lhs = self.pop();
         const boxed_rhs = self.pop();
+        const boxed_lhs = self.pop();
 
         switch (boxed_lhs) {
             .boolean, .nil, .object => {
