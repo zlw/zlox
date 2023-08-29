@@ -8,6 +8,8 @@ const OpCode = @import("./chunk.zig").OpCode;
 const Value = @import("./value.zig").Value;
 const printValue = @import("./value.zig").printValue;
 
+const Table = @import("./table.zig").Table;
+
 const compile = @import("./compiler.zig").compile;
 
 const debug_trace_execution = debug.debug_trace_execution;
@@ -29,16 +31,18 @@ pub const Vm = struct {
     chunk: *Chunk = undefined,
     ip: usize = 0,
     stack: [stack_max]Value = undefined,
-    stack_top: usize = 0,
+    stack_top:  usize = 0,
+    strings: Table,
     objects: ?*Object = null,
     allocator: Allocator,
 
     pub fn init(allocator: Allocator) Self {
-        return Self{ .allocator = allocator };
+        return Self{ .allocator = allocator, .strings = Table.init(allocator) };
     }
 
     pub fn deinit(self: *Self) void {
         self.freeObjects();
+        self.strings.deinit();
     }
 
     pub fn interpret(self: *Self, source: []const u8) InterpretError!void {
@@ -219,8 +223,8 @@ pub const Vm = struct {
     fn freeObjects(self: *Self) void {
         var obj = self.objects;
         var total_objects: u64 = 0;
-        
-        while (obj) |object| { 
+
+        while (obj) |object| {
             if (comptime debug_garbace_collection) {
                 total_objects += 1;
             }
@@ -228,7 +232,7 @@ pub const Vm = struct {
             object.destroy(self);
             obj = next;
         }
-        
+
         if (comptime debug_garbace_collection) {
             std.debug.print("Objects freed {d}\n", .{total_objects});
         }

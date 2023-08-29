@@ -25,17 +25,16 @@ pub const Value = union(enum) {
         return Value.nil;
     }
 
+    pub inline fn isNil(self: Self) bool {
+        return self == Value.nil;
+    }
+
     pub fn equal(self: Self, other: Self) bool {
         return switch (self) {
             .nil => other == .nil,
             .boolean => other == .boolean and self.boolean == other.boolean,
             .number => other == .number and self.number == other.number,
-            .object => other == .object and {
-                const a = self.object.asString();
-                const b = other.object.asString();
-
-                return a.length == b.length and std.mem.eql(u8, a.chars, b.chars);
-            },
+            .object => other == .object and self.object == other.object,
         };
     }
 };
