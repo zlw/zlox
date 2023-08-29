@@ -83,6 +83,14 @@ fn readFile(path: []const u8, allocator: Allocator) []const u8 {
     };
 }
 
-test "basic test" {
-    try std.testing.expectEqual(10, 3 + 7);
+test {
+    _ = @import("./chunk.zig");
+    _ = @import("./compiler.zig");
+    _ = @import("./debug.zig");
+    _ = @import("./dynamic_array.zig");
+    _ = @import("./object.zig");
+    _ = @import("./scanner.zig");
+    _ = @import("./table.zig");
+    _ = @import("./value.zig");
+    _ = @import("./vm.zig");
 }

@@ -3,8 +3,7 @@ TEST_FILES=`find test -name "*.lox" \
 	| grep -v test/scanning \
 	| grep -v test/expressions \
 	`
-
-all: build
+default: repl
 
 clean:
 	rm -rf build/*
@@ -16,9 +15,12 @@ build:
 	zig build
 
 release:
-	zig build -Drelease-fast=true
+	zig build -Doptimize=ReleaseFast
 
-test: build
+unit:
+	zig test src/main.zig
+
+integration: build
 	zig run util/test.zig -- zig-out/bin/zlox $(TEST_FILES)
 
 repl: build

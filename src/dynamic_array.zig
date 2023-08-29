@@ -44,19 +44,13 @@ pub fn growCapacity(capacity: usize) usize {
 
 test "create a DynamicArray" {
     const expect = std.testing.expect;
-
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer {
-        switch (gpa.deinit()) {
-            .ok => {},
-            .leak => expect(false) catch @panic("The table is leaking"),
-        }
-    }
-
-    var arr = DynamicArray(u8).init(gpa.allocator());
+    const allocator = std.testing.allocator;
+    
+    var arr = DynamicArray(u8).init(allocator);
     defer arr.deinit();
 
     arr.appendItem(5);
+
     try expect(arr.items[0] == 5);
     try expect(arr.count == 1);
 
@@ -74,7 +68,9 @@ test "create a DynamicArray" {
     arr.appendItem(12);
     arr.appendItem(13);
     arr.appendItem(14);
+
     try expect(arr.items[10] == 10);
+    
     arr.deinit();
 
     try expect(arr.count == 0);

@@ -76,16 +76,9 @@ pub const Chunk = struct {
 
 test "create a Chunk with bytes only" {
     const expect = std.testing.expect;
+    const allocator = std.testing.allocator;
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer {
-        switch (gpa.deinit()) {
-            .ok => {},
-            .leak => expect(false) catch @panic("The table is leaking"),
-        }
-    }
-
-    var chunk = Chunk.init(gpa.allocator());
+    var chunk = Chunk.init(allocator);
     defer chunk.deinit();
 
     try chunk.write(OpCode.op_return.toU8(), 1);
