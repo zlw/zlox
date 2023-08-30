@@ -3,7 +3,7 @@
 const std = @import("std");
 const process = std.process;
 
-const allocator = std.heap.c_allocator;
+const allocator = std.heap.page_allocator;
 
 pub fn main() !void {
     var npassed: usize = 0;

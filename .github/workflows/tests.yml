@@ -1,4 +1,4 @@
-name: Tests
+name: Test
 
 on:
   push:
@@ -27,5 +27,5 @@ jobs:
     - name: Run unit tests
       run: make unit
 
-    - name: Run integration tests
-      run: make integration
+    - name: Run system tests
+      run: make system

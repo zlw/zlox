@@ -20,7 +20,7 @@ release:
 unit:
 	zig test src/main.zig
 
-integration: build
+system: build
 	zig run util/test.zig -- zig-out/bin/zlox $(TEST_FILES)
 
 repl: build
