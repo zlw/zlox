@@ -4,7 +4,7 @@ const Chunk  = @import("./chunk.zig").Chunk;
 const OpCode = @import("./chunk.zig").OpCode;
 const Value  = @import("./value.zig").Value;
 
-pub const debug_trace_execution = true;
+pub const debug_trace_execution = false;
 pub const debug_stack_execution = false;
 pub const debug_rule_selection = false;
 pub const debug_garbage_collection = false;
@@ -54,6 +54,7 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) void {
         .op_subtract => simpleInstruction("OP_SUBTRACT"),
         .op_multiply => simpleInstruction("OP_MULTIPLY"),
         .op_divide   => simpleInstruction("OP_DIVIDE"),
+        .op_print => simpleInstruction("OP_PRINT"),
         .op_return   => simpleInstruction("OP_RETURN"),
     }
 }

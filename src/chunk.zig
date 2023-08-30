@@ -20,6 +20,7 @@ pub const OpCode = enum(u8) {
     op_subtract,
     op_multiply,
     op_divide,
+    op_print,
     op_return,
 
     pub fn toU8(self: Self) u8 {

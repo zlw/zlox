@@ -19,13 +19,11 @@ pub fn compile(vm: *Vm, source: []const u8, chunk: *Chunk) CompileError!void {
     var parser = Parser.init(vm, &scanner, chunk);
 
     try parser.advance();
-    try parser.expression();
-
-    if (scanner.nextToken()) |_| {
-        parser.errAtCurrent("Expect end of expression.");
-        return CompileError.CompileError;
+    
+    while (scanner.hasNextToken()) {
+        try parser.declaration();
     }
-
+    
     parser.endCompiler();
 }
 
@@ -153,6 +151,37 @@ const Parser = struct {
 
     pub fn expression(self: *Self) !void {
         try self.parsePrecendece(.precAssignment);
+    }
+
+    pub fn match(self: *Self, token_type: TokenType) CompileError!bool {
+        if (!self.check(token_type)) return false;
+
+        try self.advance();
+        return true;
+    }
+
+    fn check(self: *Self, token_type: TokenType) bool {
+        return self.current.token_type == token_type;
+    }
+
+    pub fn declaration(self: *Self) CompileError!void {
+        try self.statement();
+    }
+
+    fn statement(self: *Self) CompileError!void {
+        if (try self.match(TokenType.Print)) { 
+            try self.printStatement();
+        } else {
+            try self.expression();
+            try self.consume(TokenType.Semicolon, "Expect ';' after expression.");
+            self.emitByte(OpCode.op_return.toU8());
+        }
+    }
+
+    fn printStatement(self: *Self) CompileError!void {
+        try self.expression();
+        try self.consume(TokenType.Semicolon, "Expected ';' after value");
+        self.emitByte(OpCode.op_print.toU8());
     }
 
     fn number(self: *Self) !void {

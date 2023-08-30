@@ -11,7 +11,7 @@ pub fn main() !void {
 
     {
         const args = try process.argsAlloc(allocator);
-        std.debug.print("{s}", .{args});
+        std.debug.print("{s}\n", .{args});
 
         defer process.argsFree(allocator, args);
 

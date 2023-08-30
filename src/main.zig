@@ -8,6 +8,8 @@ const OpCode = @import("./chunk.zig").OpCode;
 const Vm = @import("./vm.zig").Vm;
 const InterpretError = @import("./vm.zig").InterpretError;
 
+const debug_garbage_collection = @import("./debug.zig").debug_garbage_collection;
+
 const errout = std.io.getStdErr().writer();
 const stdout = std.io.getStdOut().writer();
 const stdin = std.io.getStdIn().reader();
@@ -15,10 +17,14 @@ const stdin = std.io.getStdIn().reader();
 pub fn main() anyerror!u8 {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
-    defer {
-        const has_leaked = gpa.detectLeaks();
-        std.log.debug("Has leaked: {}\n", .{has_leaked});
+
+    if (comptime debug_garbage_collection) {
+        defer {
+            const has_leaked = gpa.detectLeaks();
+            std.log.debug("Has leaked: {}\n", .{has_leaked});
+        }
     }
+
     var allocator = gpa.allocator();
 
     const args = try process.argsAlloc(allocator);
@@ -29,7 +35,7 @@ pub fn main() anyerror!u8 {
 
     switch (args.len) {
         1 => repl(&vm),
-        2 => runFile(args[0], &vm, allocator),
+        2 => runFile(args[1], &vm, allocator),
         else => {
             const stderr = io.getStdErr().writer();
             try stderr.print("Usage: lox [path]\n", .{});
@@ -71,14 +77,8 @@ fn runFile(fileName: []const u8, vm: *Vm, allocator: Allocator) void {
 }
 
 fn readFile(path: []const u8, allocator: Allocator) []const u8 {
-    const file = std.fs.cwd().openFile(path, .{}) catch |err| {
-        errout.print("Could not open file \"{s}\", error: {any}.\n", .{ path, err }) catch {};
-        std.process.exit(74);
-    };
-    defer file.close();
-
-    return file.readToEndAlloc(allocator, 100_000_000) catch |err| {
-        errout.print("Could not read file \"{s}\", error: {any}.\n", .{ path, err }) catch {};
+    return std.fs.cwd().readFileAlloc(allocator, path, 1_000_000) catch |err| {
+        errout.print("Could not open file \"{s}\", error: {any}\n", .{path, err}) catch {};
         std.process.exit(74);
     };
 }

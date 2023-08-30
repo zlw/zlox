@@ -40,12 +40,15 @@ pub const Value = union(enum) {
 };
 
 pub fn printValue(boxed: Value) void {
+    const stdout = std.io.getStdOut().writer();
+    const msg = "Panic while printing value printOperation\n";
+
     switch (boxed) {
-        .number => |value| std.debug.print("{}", .{value}),
-        .boolean => |value| std.debug.print("{}", .{value}),
-        .nil => std.debug.print("nil", .{}),
+        .number => |value| stdout.print("{d}\n", .{value}) catch @panic(msg),
+        .boolean => |value| stdout.print("{}\n", .{value}) catch @panic(msg),
+        .nil => stdout.print("nil\n", .{}) catch @panic(msg),
         .object => |value| switch (value.objectType) {
-            .String => std.debug.print("{s}", .{value.asString().chars}),
+            .String => stdout.print("{s}\n", .{value.asString().chars}) catch @panic(msg),
         },
     }
 }
