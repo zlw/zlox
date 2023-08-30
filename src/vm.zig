@@ -98,6 +98,7 @@ pub const Vm = struct {
                 .op_multiply => self.binaryOp(.mul),
                 .op_divide => self.binaryOp(.div),
                 .op_print => printValue(self.pop()),
+                .op_pop => { _ = self.pop(); },
                 .op_return => return,                
             };
         }

@@ -55,6 +55,7 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) void {
         .op_multiply => simpleInstruction("OP_MULTIPLY"),
         .op_divide   => simpleInstruction("OP_DIVIDE"),
         .op_print => simpleInstruction("OP_PRINT"),
+        .op_pop => simpleInstruction("OP_POP"),
         .op_return   => simpleInstruction("OP_RETURN"),
     }
 }

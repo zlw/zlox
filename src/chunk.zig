@@ -21,6 +21,7 @@ pub const OpCode = enum(u8) {
     op_multiply,
     op_divide,
     op_print,
+    op_pop,
     op_return,
 
     pub fn toU8(self: Self) u8 {

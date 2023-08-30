@@ -166,15 +166,28 @@ const Parser = struct {
 
     pub fn declaration(self: *Self) CompileError!void {
         try self.statement();
+        if (self.panicMode) try self.synchronize();
+    }
+
+    fn synchronize(self: *Self) CompileError!void {
+        self.panicMode = false;
+
+        while (self.scanner.hasNextToken()) {
+            if (self.previous.token_type == TokenType.Semicolon) return;
+
+            switch (self.current.token_type) {
+                .Class, .Fun, .Var, .For, .If, 
+                .While, .Print, .Return => return,
+                else => try self.advance(),
+            }
+        }
     }
 
     fn statement(self: *Self) CompileError!void {
         if (try self.match(TokenType.Print)) { 
             try self.printStatement();
         } else {
-            try self.expression();
-            try self.consume(TokenType.Semicolon, "Expect ';' after expression.");
-            self.emitByte(OpCode.op_return.toU8());
+            try self.expressionStatement();
         }
     }
 
@@ -182,6 +195,12 @@ const Parser = struct {
         try self.expression();
         try self.consume(TokenType.Semicolon, "Expected ';' after value");
         self.emitByte(OpCode.op_print.toU8());
+    }
+
+    fn expressionStatement(self: *Self) CompileError!void {
+        try self.expression();
+        try self.consume(TokenType.Semicolon, "Expect ';' after expression.");
+        self.emitByte(OpCode.op_pop.toU8());
     }
 
     fn number(self: *Self) !void {
