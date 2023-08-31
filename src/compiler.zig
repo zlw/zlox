@@ -19,12 +19,14 @@ pub fn compile(vm: *Vm, source: []const u8, chunk: *Chunk) CompileError!void {
     var parser = Parser.init(vm, &scanner, chunk);
 
     try parser.advance();
-    
-    while (scanner.hasNextToken()) {
+
+    while (!try parser.match(.Eof)) {
         try parser.declaration();
     }
-    
+    try parser.consume(.Eof, "Expect end of expression.");
     parser.endCompiler();
+
+    if (parser.hadError) return error.CompileError;
 }
 
 const Precedence = enum {
@@ -140,7 +142,7 @@ const Parser = struct {
     }
 
     fn consume(self: *Self, token_type: TokenType, message: []const u8) CompileError!void {
-        if (self.current.token_type == token_type) {
+        if (self.check(token_type)) {
             try self.advance();
             return;
         }
@@ -172,7 +174,7 @@ const Parser = struct {
     fn synchronize(self: *Self) CompileError!void {
         self.panicMode = false;
 
-        while (self.scanner.hasNextToken()) {
+        while (!self.check(TokenType.Eof)) {
             if (self.previous.token_type == TokenType.Semicolon) return;
 
             switch (self.current.token_type) {
