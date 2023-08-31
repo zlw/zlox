@@ -210,29 +210,29 @@ pub const Scanner = struct {
 
     fn identifierType(self: *Self) TokenType {
         return switch (self.source[self.start]) {
-            'a' => self.checkKeyword("and", .And),
-            'c' => self.checkKeyword("class", .Class),
-            'e' => self.checkKeyword("else", .Else),
+            'a' => self.checkKeyword("and", TokenType.And),
+            'c' => self.checkKeyword("class", TokenType.Class),
+            'e' => self.checkKeyword("else", TokenType.Else),
             'f' => switch (self.source[self.start + 1]) {
-                'a' => self.checkKeyword("false", .False),
-                'o' => self.checkKeyword("for", .For),
-                'u' => self.checkKeyword("fun", .Fun),
+                'a' => self.checkKeyword("false", TokenType.False),
+                'o' => self.checkKeyword("for", TokenType.For),
+                'u' => self.checkKeyword("fun", TokenType.Fun),
                 else => .Identifier,
             },
-            'i' => self.checkKeyword("if", .If),
-            'n' => self.checkKeyword("nil", .Nil),
-            'o' => self.checkKeyword("or", .Or),
-            'p' => self.checkKeyword("print", .Print),
-            'r' => self.checkKeyword("return", .Return),
-            's' => self.checkKeyword("super", .Super),
+            'i' => self.checkKeyword("if", TokenType.If),
+            'n' => self.checkKeyword("nil", TokenType.Nil),
+            'o' => self.checkKeyword("or", TokenType.Or),
+            'p' => self.checkKeyword("print", TokenType.Print),
+            'r' => self.checkKeyword("return", TokenType.Return),
+            's' => self.checkKeyword("super", TokenType.Super),
             't' => switch (self.source[self.start + 1]) {
-                'h' => self.checkKeyword("this", .This),
-                'r' => self.checkKeyword("true", .True),
-                else => .Identifier,
+                'h' => self.checkKeyword("this", TokenType.This),
+                'r' => self.checkKeyword("true", TokenType.True),
+                else => TokenType.Identifier,
             },
-            'v' => self.checkKeyword("var", .Var),
-            'w' => self.checkKeyword("while", .While),
-            else => .Identifier,
+            'v' => self.checkKeyword("var", TokenType.Var),
+            'w' => self.checkKeyword("while", TokenType.While),
+            else => TokenType.Identifier,
         };
     }
 
@@ -241,7 +241,7 @@ pub const Scanner = struct {
             return ty;
         }
 
-        return .Identifier;
+        return TokenType.Identifier;
     }
 };
 
