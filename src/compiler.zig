@@ -127,7 +127,7 @@ const Parser = struct {
         return Self{ .vm = vm, .scanner = scanner, .chunk = chunk };
     }
 
-    pub fn advance(self: *Self) CompileError!void {
+    fn advance(self: *Self) CompileError!void {
         self.previous = self.current;
 
         while (self.scanner.nextToken()) |token| {
@@ -139,7 +139,7 @@ const Parser = struct {
         }
     }
 
-    pub fn consume(self: *Self, token_type: TokenType, message: []const u8) CompileError!void {
+    fn consume(self: *Self, token_type: TokenType, message: []const u8) CompileError!void {
         if (self.current.token_type == token_type) {
             try self.advance();
             return;
@@ -149,11 +149,11 @@ const Parser = struct {
         return CompileError.CompileError;
     }
 
-    pub fn expression(self: *Self) !void {
+    fn expression(self: *Self) !void {
         try self.parsePrecendece(.precAssignment);
     }
 
-    pub fn match(self: *Self, token_type: TokenType) CompileError!bool {
+    fn match(self: *Self, token_type: TokenType) CompileError!bool {
         if (!self.check(token_type)) return false;
 
         try self.advance();
@@ -164,7 +164,7 @@ const Parser = struct {
         return self.current.token_type == token_type;
     }
 
-    pub fn declaration(self: *Self) CompileError!void {
+    fn declaration(self: *Self) CompileError!void {
         try self.statement();
         if (self.panicMode) try self.synchronize();
     }
@@ -194,13 +194,13 @@ const Parser = struct {
     fn printStatement(self: *Self) CompileError!void {
         try self.expression();
         try self.consume(TokenType.Semicolon, "Expected ';' after value");
-        self.emitByte(OpCode.op_print.toU8());
+        self.emitOp(OpCode.op_print);
     }
 
     fn expressionStatement(self: *Self) CompileError!void {
         try self.expression();
         try self.consume(TokenType.Semicolon, "Expect ';' after expression.");
-        self.emitByte(OpCode.op_pop.toU8());
+        self.emitOp(OpCode.op_pop);
     }
 
     fn number(self: *Self) !void {
@@ -224,8 +224,8 @@ const Parser = struct {
         const operatorType = self.previous.token_type;
         try self.parsePrecendece(.precUnary);
         switch (operatorType) {
-            .Bang => self.emitByte(OpCode.op_not.toU8()),
-            .Minus => self.emitByte(OpCode.op_negate.toU8()),
+            .Bang => self.emitOp(OpCode.op_not),
+            .Minus => self.emitOp(OpCode.op_negate),
             else => unreachable,
         }
     }
@@ -236,25 +236,25 @@ const Parser = struct {
         try self.parsePrecendece(@enumFromInt(@intFromEnum(rule.precedence) + 1));
 
         switch (operatorType) {
-            .BangEqual => self.emitBytes(OpCode.op_equal.toU8(), OpCode.op_not.toU8()),
-            .EqualEqual => self.emitByte(OpCode.op_equal.toU8()),
-            .Greater => self.emitByte(OpCode.op_greater.toU8()),
-            .GreaterEqual => self.emitBytes(OpCode.op_less.toU8(), OpCode.op_not.toU8()),
-            .Less => self.emitByte(OpCode.op_less.toU8()),
-            .LessEqual => self.emitBytes(OpCode.op_greater.toU8(), OpCode.op_not.toU8()),
-            .Plus => self.emitByte(OpCode.op_add.toU8()),
-            .Minus => self.emitByte(OpCode.op_subtract.toU8()),
-            .Star => self.emitByte(OpCode.op_multiply.toU8()),
-            .Slash => self.emitByte(OpCode.op_divide.toU8()),
+            .BangEqual => self.emitOps(OpCode.op_equal, OpCode.op_not),
+            .EqualEqual => self.emitOp(OpCode.op_equal),
+            .Greater => self.emitOp(OpCode.op_greater),
+            .GreaterEqual => self.emitOps(OpCode.op_less, OpCode.op_not),
+            .Less => self.emitOp(OpCode.op_less),
+            .LessEqual => self.emitOps(OpCode.op_greater, OpCode.op_not),
+            .Plus => self.emitOp(OpCode.op_add),
+            .Minus => self.emitOp(OpCode.op_subtract),
+            .Star => self.emitOp(OpCode.op_multiply),
+            .Slash => self.emitOp(OpCode.op_divide),
             else => unreachable,
         }
     }
 
     fn literal(self: *Self) !void {
         switch (self.previous.token_type) {
-            .False => self.emitByte(OpCode.op_false.toU8()),
-            .True => self.emitByte(OpCode.op_true.toU8()),
-            .Nil => self.emitByte(OpCode.op_nil.toU8()),
+            .False => self.emitOp(OpCode.op_false),
+            .True => self.emitOp(OpCode.op_true),
+            .Nil => self.emitOp(OpCode.op_nil),
             else => unreachable,
         }
     }
@@ -309,7 +309,7 @@ const Parser = struct {
 
     fn emitConstant(self: *Self, value: Value) !void {
         const constIdx = try self.makeConstant(value);
-        self.emitBytes(OpCode.op_constant.toU8(), constIdx);
+        self.emitOpAndByte(OpCode.op_constant, constIdx);
     }
 
     fn makeConstant(self: *Self, value: Value) !u8 {
@@ -325,23 +325,28 @@ const Parser = struct {
         return @as(u8, @intCast(constant));
     }
 
-    pub fn emitByte(self: *Self, byte: u8) void {
+    fn emitOp(self: *Self, code: OpCode) void {
+        self.emitByte(code.toU8());
+    }
+
+    fn emitOps(self: *Self, code1: OpCode, code2: OpCode) void {
+        self.emitOp(code1);
+        self.emitOp(code2);
+    }
+
+    fn emitOpAndByte(self: *Self, code: OpCode, byte: u8) void {
+        self.emitOp(code);
+        self.emitByte(byte);
+    }
+
+    fn emitByte(self: *Self, byte: u8) void {
         self.chunk.write(byte, self.previous.line) catch |e| {
             std.log.err("Error {any} trying to emit byte", .{e});
             std.process.exit(1);
         };
     }
 
-    pub fn emitBytes(self: *Self, byte1: u8, byte2: u8) void {
-        self.emitByte(byte1);
-        self.emitByte(byte2);
-    }
-
-    pub fn endCompiler(self: *Self) void {
-        self.emitReturn();
-    }
-
-    fn emitReturn(self: *Self) void {
-        self.emitByte(OpCode.op_return.toU8());
+    fn endCompiler(self: *Self) void {
+        self.emitOp(OpCode.op_return);
     }
 };
