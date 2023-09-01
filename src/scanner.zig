@@ -208,11 +208,17 @@ pub const Scanner = struct {
             'a' => self.checkKeyword("and", TokenType.And),
             'c' => self.checkKeyword("class", TokenType.Class),
             'e' => self.checkKeyword("else", TokenType.Else),
-            'f' => switch (self.source[self.start + 1]) {
-                'a' => self.checkKeyword("false", TokenType.False),
-                'o' => self.checkKeyword("for", TokenType.For),
-                'u' => self.checkKeyword("fun", TokenType.Fun),
-                else => .Identifier,
+            'f' => {
+                if (self.source.len > self.start + 1) {
+                    return switch (self.source[self.start + 1]) {
+                        'a' => self.checkKeyword("false", TokenType.False),
+                        'o' => self.checkKeyword("for", TokenType.For),
+                        'u' => self.checkKeyword("fun", TokenType.Fun),
+                        else => TokenType.Identifier,
+                    };
+                } else {
+                    return TokenType.Identifier;
+                }
             },
             'i' => self.checkKeyword("if", TokenType.If),
             'n' => self.checkKeyword("nil", TokenType.Nil),
@@ -220,10 +226,16 @@ pub const Scanner = struct {
             'p' => self.checkKeyword("print", TokenType.Print),
             'r' => self.checkKeyword("return", TokenType.Return),
             's' => self.checkKeyword("super", TokenType.Super),
-            't' => switch (self.source[self.start + 1]) {
-                'h' => self.checkKeyword("this", TokenType.This),
-                'r' => self.checkKeyword("true", TokenType.True),
-                else => TokenType.Identifier,
+            't' => {
+                if (self.source.len > self.start + 1) {
+                    return switch (self.source[self.start + 1]) {
+                        'h' => self.checkKeyword("this", TokenType.This),
+                        'r' => self.checkKeyword("true", TokenType.True),
+                        else => TokenType.Identifier,
+                    };
+                } else {
+                    return TokenType.Identifier;
+                }
             },
             'v' => self.checkKeyword("var", TokenType.Var),
             'w' => self.checkKeyword("while", TokenType.While),
