@@ -167,7 +167,12 @@ const Parser = struct {
     }
 
     fn declaration(self: *Self) CompileError!void {
-        try self.statement();
+        if (try self.match(TokenType.Var)) {
+            try self.varDeclaration();
+        } else {
+            try self.statement();
+        }
+        
         if (self.panicMode) try self.synchronize();
     }
 
@@ -183,6 +188,20 @@ const Parser = struct {
                 else => try self.advance(),
             }
         }
+    }
+
+    fn varDeclaration(self: *Self) CompileError!void {
+        const global = try self.parseVariable("Expect variable name");
+
+        if (try self.match(TokenType.Equal)) {
+            try self.expression();
+        } else {
+            self.emitOp(OpCode.op_nil);
+        }
+
+        try self.consume(TokenType.Semicolon, "Expect ';' after variable declaration");
+
+        self.defineVariable(global);
     }
 
     fn statement(self: *Self) CompileError!void {
@@ -282,6 +301,21 @@ const Parser = struct {
             try infixRule(self);
         }
     }
+
+    fn identifierConstant(self: *Self, name: *Token) !u8 {
+        const identifier = Object.String.copy(self.vm, name.lexeme);
+        return self.makeConstant(Value.ObjectValue(&identifier.object));
+    }
+
+    fn parseVariable(self: *Self, message: []const u8) !u8 {
+        try self.consume(TokenType.Identifier, message);
+        return self.identifierConstant(&self.previous);
+    }
+
+    fn defineVariable(self: *Self, global: u8) void {
+        self.emitOpAndByte(OpCode.op_define_global, global);
+    }
+    
 
     fn errAtCurrent(self: *Self, message: []const u8) void {
         self.errAt(self.current, message);

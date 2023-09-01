@@ -33,15 +33,17 @@ pub const Vm = struct {
     stack: [stack_max]Value = undefined,
     stack_top:  usize = 0,
     strings: Table,
+    globals: Table,
     objects: ?*Object = null,
     allocator: Allocator,
 
     pub fn init(allocator: Allocator) Self {
-        return Self{ .allocator = allocator, .strings = Table.init(allocator) };
+        return Self{ .allocator = allocator, .strings = Table.init(allocator), .globals = Table.init(allocator) };
     }
 
     pub fn deinit(self: *Self) void {
         self.freeObjects();
+        self.globals.deinit();
         self.strings.deinit();
     }
 
@@ -99,6 +101,11 @@ pub const Vm = struct {
                 .op_divide => self.binaryOp(.div),
                 .op_print => printValue(self.pop()),
                 .op_pop => { _ = self.pop(); },
+                .op_define_global => {
+                    const name = self.readConstant().object.asString();
+                    _ = self.globals.set(name, self.peek(0));
+                    _ = self.pop();                    
+                },
                 .op_return => return,                
             };
         }
@@ -113,6 +120,9 @@ pub const Vm = struct {
         self.stack_top += 1;
     }
 
+    fn peek(self: *Self, back: usize) Value {
+        return self.stack[self.stack_top - 1 - back];
+    }
     pub inline fn pop(self: *Self) Value {
         self.stack_top -= 1;
         return self.stack[self.stack_top];
