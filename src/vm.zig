@@ -31,7 +31,7 @@ pub const Vm = struct {
     chunk: *Chunk = undefined,
     ip: usize = 0,
     stack: [stack_max]Value = undefined,
-    stack_top:  usize = 0,
+    stack_top: usize = 0,
     strings: Table,
     globals: Table,
     objects: ?*Object = null,
@@ -100,13 +100,22 @@ pub const Vm = struct {
                 .op_multiply => self.binaryOp(.mul),
                 .op_divide => self.binaryOp(.div),
                 .op_print => printValue(self.pop()),
-                .op_pop => { _ = self.pop(); },
+                .op_pop => _ = self.pop(),
                 .op_define_global => {
                     const name = self.readConstant().object.asString();
                     _ = self.globals.set(name, self.peek(0));
-                    _ = self.pop();                    
+                    _ = self.pop();
                 },
-                .op_return => return,                
+                .op_get_global => {
+                    const name = self.readConstant().object.asString();
+                    const value = self.globals.get(name) orelse {
+                        self.runtimeError("Undefined variable '{s}'", .{name.chars});
+                        return InterpretError.RuntimeError;
+                    };
+
+                    self.push(value.*);
+                },
+                .op_return => return,
             };
         }
     }
@@ -143,9 +152,8 @@ pub const Vm = struct {
     fn runtimeError(self: *Self, comptime message: []const u8, args: anytype) void {
         const err_writer = std.io.getStdErr().writer();
 
+        err_writer.print("[line {d}] Error in script: ", .{self.chunk.lines.items[self.ip]}) catch {};
         err_writer.print(message ++ "\n", args) catch {};
-
-        err_writer.print("[line {d}] in script.\n", .{self.chunk.lines.items[self.ip]}) catch {};
 
         self.resetStack();
     }
@@ -159,7 +167,7 @@ pub const Vm = struct {
                 self.runtimeError("Operand must be a number or an object", .{});
                 return InterpretError.RuntimeError;
             },
-            .number, => |lhs| {
+            .number => |lhs| {
                 switch (boxed_rhs) {
                     .boolean, .nil, .object => {
                         self.runtimeError("Operand must be a number", .{});
@@ -187,7 +195,7 @@ pub const Vm = struct {
                         switch (op) {
                             .add => {
                                 const heap = std.mem.concat(self.allocator, u8, &[_][]const u8{ lhs.asString().chars, rhs.asString().chars }) catch unreachable;
-                                const obj  = Object.String.take(self, heap);
+                                const obj = Object.String.take(self, heap);
 
                                 self.push(Value.ObjectValue(&obj.object));
                             },

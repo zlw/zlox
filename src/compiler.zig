@@ -26,7 +26,7 @@ pub fn compile(vm: *Vm, source: []const u8, chunk: *Chunk) CompileError!void {
     try parser.consume(.Eof, "Expect end of expression.");
     parser.endCompiler();
 
-    if (parser.hadError) return error.CompileError;
+    if (parser.hadError) return CompileError.CompileError;
 }
 
 const Precedence = enum {
@@ -84,7 +84,7 @@ fn getRule(token_type: TokenType) ParseRule {
         .GreaterEqual => ParseRule.init(null, Parser.binary, .precComparison),
         .Less => ParseRule.init(null, Parser.binary, .precComparison),
         .LessEqual => ParseRule.init(null, Parser.binary, .precComparison),
-        .Identifier => ParseRule.init(null, null, .precNone),
+        .Identifier => ParseRule.init(Parser.variable, null, .precNone),
         .String => ParseRule.init(Parser.string, null, .precNone),
         .Number => ParseRule.init(Parser.number, null, .precNone),
         .And => ParseRule.init(null, null, .precNone),
@@ -234,6 +234,15 @@ const Parser = struct {
         const value = Object.String.copy(self.vm, lexeme[1..lexeme.len-1]);
 
         try self.emitConstant(Value.ObjectValue(&value.object));
+    }
+
+    fn variable(self: *Self) !void {
+        try self.namedVariable(&self.previous);
+    }
+
+    fn namedVariable(self: *Self, name: *Token) !void {
+        const arg = try self.identifierConstant(name);
+        self.emitOpAndByte(OpCode.op_get_global, arg);
     }
 
     fn grouping(self: *Self) !void {

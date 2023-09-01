@@ -23,6 +23,7 @@ pub const OpCode = enum(u8) {
     op_print,
     op_pop,
     op_define_global,
+    op_get_global,
     op_return,
 
     pub fn toU8(self: Self) u8 {
