@@ -115,6 +115,15 @@ pub const Vm = struct {
 
                     self.push(value.*);
                 },
+                .op_set_global => {
+                    const name = self.readConstant().object.asString();
+                    if (self.globals.set(name, self.peek(0))) {
+                        _ = self.globals.delete(name);
+                        self.runtimeError("Undefined variable '{s}'", .{name.chars});
+                        return InterpretError.RuntimeError;
+                    }
+                    
+                },
                 .op_return => return,
             };
         }

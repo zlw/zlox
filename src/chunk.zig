@@ -24,6 +24,7 @@ pub const OpCode = enum(u8) {
     op_pop,
     op_define_global,
     op_get_global,
+    op_set_global,
     op_return,
 
     pub fn toU8(self: Self) u8 {
@@ -49,9 +50,9 @@ pub const Chunk = struct {
     const ValueArray = DynamicArray(Value);
     const LinesArray = DynamicArray(usize);
 
-    code:      BytesArray,
+    code: BytesArray,
     constants: ValueArray,
-    lines:     LinesArray,
+    lines: LinesArray,
 
     pub fn init(allocator: Allocator) Chunk {
         return Self{

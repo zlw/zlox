@@ -58,6 +58,7 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) void {
         .op_pop => simpleInstruction("OP_POP"),
         .op_define_global => constantInstruction("OP_DEFINE_GLOBAL", chunk, offset),
         .op_get_global => constantInstruction("OP_GET_GLOBAL", chunk, offset),
+        .op_set_global => constantInstruction("OP_SET_GLOBAL", chunk, offset),
         .op_return   => simpleInstruction("OP_RETURN"),
     }
 }
