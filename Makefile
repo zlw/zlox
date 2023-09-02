@@ -1,8 +1,3 @@
-TEST_FILES=`find test -name "*.lox" \
-	| grep -v test/benchmark \
-	| grep -v test/scanning \
-	| grep -v test/expressions \
-	`
 default: repl
 
 clean:
@@ -21,7 +16,7 @@ unit:
 	zig test src/main.zig
 
 system: build
-	zig run util/test.zig -- zig-out/bin/zlox $(TEST_FILES)
+	zig run util/test.zig -- zig-out/bin/zlox `find $(path) -name "*.lox"`
 
 repl: build
 	./zig-out/bin/zlox
