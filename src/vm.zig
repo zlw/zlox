@@ -124,6 +124,14 @@ pub const Vm = struct {
                     }
                     
                 },
+                .op_get_local => {
+                    const slot = self.readInstruction().toU8();
+                    self.push(self.stack[slot]);
+                },
+                .op_set_local => {
+                    const slot = self.readInstruction().toU8();
+                    self.stack[slot] = self.peek(0);
+                },
                 .op_return => return,
             };
         }
