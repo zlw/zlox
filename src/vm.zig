@@ -170,7 +170,7 @@ pub const Vm = struct {
         const err_writer = std.io.getStdErr().writer();
 
         err_writer.print("[line {d}] Error in script: ", .{self.chunk.lines.items[self.ip]}) catch {};
-        err_writer.print(message ++ "\n", args) catch {};
+        err_writer.print(message ++ ".\n", args) catch {};
 
         self.resetStack();
     }
@@ -181,13 +181,17 @@ pub const Vm = struct {
 
         switch (boxed_lhs) {
             .boolean, .nil => {
-                self.runtimeError("Operand must be a number or an object", .{});
+                self.runtimeError("Operands must be two numbers or two strings", .{});
                 return InterpretError.RuntimeError;
             },
             .number => |lhs| {
                 switch (boxed_rhs) {
-                    .boolean, .nil, .object => {
-                        self.runtimeError("Operand must be a number", .{});
+                    .boolean, .nil => {
+                        self.runtimeError("Operands must be two numbers or two strings", .{});
+                        return InterpretError.RuntimeError;
+                    },
+                    .object => {
+                        self.runtimeError("Operands must be numbers", .{});
                         return InterpretError.RuntimeError;
                     },
                     .number => |rhs| {
@@ -204,8 +208,12 @@ pub const Vm = struct {
             },
             .object => |lhs| {
                 switch (boxed_rhs) {
-                    .boolean, .nil, .number => {
-                        self.runtimeError("Operand must be an object", .{});
+                    .boolean, .nil => {
+                        self.runtimeError("Operands must be two numbers or two strings", .{});
+                        return InterpretError.RuntimeError;
+                    },
+                    .number => {
+                        self.runtimeError("Operands must be numbers", .{});
                         return InterpretError.RuntimeError;
                     },
                     .object => |rhs| {
@@ -230,13 +238,13 @@ pub const Vm = struct {
 
         switch (boxed_lhs) {
             .boolean, .nil, .object => {
-                self.runtimeError("Operand must be a number", .{});
+                self.runtimeError("Operands must be numbers", .{});
                 return InterpretError.RuntimeError;
             },
             .number => |lhs| {
                 switch (boxed_rhs) {
                     .boolean, .nil, .object => {
-                        self.runtimeError("Operand must be a number", .{});
+                        self.runtimeError("Operands must be numbers", .{});
                         return InterpretError.RuntimeError;
                     },
                     .number => |rhs| {

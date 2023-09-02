@@ -24,7 +24,7 @@ pub fn compile(vm: *Vm, source: []const u8, chunk: *Chunk) CompileError!void {
     while (!try parser.match(.Eof)) {
         try parser.declaration();
     }
-    try parser.consume(.Eof, "Expect end of expression.");
+    try parser.consume(.Eof, "Expect end of expression");
     parser.endCompiler();
 
     if (parser.hadError) return CompileError.CompileError;
@@ -251,7 +251,7 @@ const Parser = struct {
             try self.declaration();
         }
 
-        try self.consume(TokenType.RightBrace, "Expect '}' after block.");
+        try self.consume(TokenType.RightBrace, "Expect '}' after block");
     }
 
     fn endScope(self: *Self) void {
@@ -265,7 +265,7 @@ const Parser = struct {
 
     fn expressionStatement(self: *Self) CompileError!void {
         try self.expression();
-        try self.consume(TokenType.Semicolon, "Expect ';' after expression.");
+        try self.consume(TokenType.Semicolon, "Expect ';' after expression");
         self.emitOp(OpCode.op_pop);
     }
 
@@ -318,7 +318,7 @@ const Parser = struct {
             const local = &self.compiler.locals[i];
             if (self.identifiersEqual(name, &local.name)) {
                 if (local.depth == null) {
-                    self.err("Can't read local variable in its own initializer.");
+                    self.err("Can't read local variable in its own initializer");
                 }
                 return @as(u8, @intCast(i));
             }
@@ -330,7 +330,7 @@ const Parser = struct {
     fn grouping(self: *Self, canAssign: bool) !void {
         _ = canAssign;
         try self.expression();
-        try self.consume(.RightParen, "Expect ')' after expression.");
+        try self.consume(.RightParen, "Expect ')' after expression");
     }
 
     fn unary(self: *Self, canAssign: bool) !void {
@@ -378,7 +378,7 @@ const Parser = struct {
     fn parsePrecendece(self: *Self, precedence: Precedence) CompileError!void {
         try self.advance();
         const prefixRule = getRule(self.previous.token_type).prefix orelse {
-            self.err("Expect expression.");
+            self.err("Expect expression");
             return CompileError.CompileError;
         };
 
@@ -487,7 +487,7 @@ const Parser = struct {
             else => errout.print(" at '{s}'", .{token.lexeme}) catch unreachable,
         }
 
-        errout.print(": {s}\n", .{message}) catch unreachable;
+        errout.print(": {s}.\n", .{message}) catch unreachable;
     }
 
     fn emitConstant(self: *Self, value: Value) !void {
@@ -497,11 +497,11 @@ const Parser = struct {
 
     fn makeConstant(self: *Self, value: Value) !u8 {
         const constant = self.chunk.addConstant(value) catch {
-            self.err("Err adding constant.");
+            self.err("Err adding constant");
             return CompileError.CompileError;
         };
         if (constant > std.math.maxInt(u8)) {
-            self.err("Too many constants in a chunk.");
+            self.err("Too many constants in a chunk");
             return CompileError.TooManyConstants;
         }
 
