@@ -11,6 +11,7 @@ const Vm = @import("./vm.zig").Vm;
 const errout = std.io.getStdErr().writer();
 
 const debug_rule_selection = @import("./debug.zig").debug_rule_selection;
+const locals_max = std.math.maxInt(u8) + 1;
 
 const CompileError = error{ CompileError, TooManyConstants };
 
@@ -114,12 +115,12 @@ fn getRule(token_type: TokenType) ParseRule {
     return rule;
 }
 
-const locals_size = std.math.maxInt(u8) + 1;
+
 
 const Compiler = struct {
     const Self = @This();
 
-    locals: [locals_size]Local = undefined,
+    locals: [locals_max]Local = undefined,
     localCount: u8 = 0,
     scopeDepth: u32 = 0,
 
@@ -454,7 +455,7 @@ const Parser = struct {
     }
 
     fn addLocal(self: *Self, name: *Token) void {
-        if (self.compiler.localCount >= locals_size) {
+        if (self.compiler.localCount >= locals_max) {
             self.err("Too many local variables in function");
             return;
         }
