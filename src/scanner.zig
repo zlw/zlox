@@ -94,7 +94,7 @@ pub const Scanner = struct {
             '<' => if (self.match('=')) self.makeToken(TokenType.LessEqual) else self.makeToken(TokenType.Less),
             '>' => if (self.match('=')) self.makeToken(TokenType.GreaterEqual) else self.makeToken(TokenType.Greater),
             '"' => self.handleString(),
-            else => return self.makeError("Unexpected character."),
+            else => return self.makeError("Unexpected character"),
         };
     }
 
@@ -131,7 +131,7 @@ pub const Scanner = struct {
             self.current += 1;
         }
 
-        if (self.isAtEnd()) return self.makeError("Unterminated string.");
+        if (self.isAtEnd()) return self.makeError("Unterminated string");
 
         // For the closing quote
         self.current += 1;
