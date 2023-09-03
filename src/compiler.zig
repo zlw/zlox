@@ -88,7 +88,7 @@ fn getRule(token_type: TokenType) ParseRule {
         .Identifier => ParseRule.init(Parser.variable, null, .precNone),
         .String => ParseRule.init(Parser.string, null, .precNone),
         .Number => ParseRule.init(Parser.number, null, .precNone),
-        .And => ParseRule.init(null, null, .precNone),
+        .And => ParseRule.init(null, Parser.logical_and, .precAnd),
         .Class => ParseRule.init(null, null, .precNone),
         .Else => ParseRule.init(null, null, .precNone),
         .False => ParseRule.init(Parser.literal, null, .precNone),
@@ -96,7 +96,7 @@ fn getRule(token_type: TokenType) ParseRule {
         .Fun => ParseRule.init(null, null, .precNone),
         .If => ParseRule.init(null, null, .precNone),
         .Nil => ParseRule.init(Parser.literal, null, .precNone),
-        .Or => ParseRule.init(null, null, .precNone),
+        .Or => ParseRule.init(null, Parser.logical_or, .precOr),
         .Print => ParseRule.init(null, null, .precNone),
         .Return => ParseRule.init(null, null, .precNone),
         .Super => ParseRule.init(null, null, .precNone),
@@ -391,6 +391,29 @@ const Parser = struct {
             .Nil => self.emitOp(OpCode.op_nil),
             else => unreachable,
         }
+    }
+
+    fn logical_and(self: *Self, canAssign: bool) !void {
+        _ = canAssign;
+        const endJump = self.emitJump(OpCode.op_jump_if_false);
+
+        self.emitOp(OpCode.op_pop);
+        try self.parsePrecendece(.precAnd);
+
+        try self.patchJump(endJump);
+    }
+
+    fn logical_or(self: *Self, canAssign: bool) !void {
+        _ = canAssign;
+        const elseJump = self.emitJump(OpCode.op_jump_if_false);
+        const endJump = self.emitJump(OpCode.op_jump);
+
+        try self.patchJump(elseJump);
+        self.emitOp(OpCode.op_pop);
+
+        try self.parsePrecendece(.precOr);
+
+        try self.patchJump(endJump);
     }
 
     fn parsePrecendece(self: *Self, precedence: Precedence) CompileError!void {
