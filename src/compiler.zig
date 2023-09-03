@@ -115,8 +115,6 @@ fn getRule(token_type: TokenType) ParseRule {
     return rule;
 }
 
-
-
 const Compiler = struct {
     const Self = @This();
 
@@ -227,6 +225,8 @@ const Parser = struct {
     fn statement(self: *Self) CompileError!void {
         if (try self.match(TokenType.Print)) {
             try self.printStatement();
+        } else if (try self.match(TokenType.If)) {
+            try self.ifStatement();
         } else if (try self.match(TokenType.LeftBrace)) {
             self.beginScope();
             try self.block();
@@ -240,6 +240,24 @@ const Parser = struct {
         try self.expression();
         try self.consume(TokenType.Semicolon, "Expected ';' after value");
         self.emitOp(OpCode.op_print);
+    }
+
+    fn ifStatement(self: *Self) CompileError!void {
+        try self.consume(TokenType.LeftParen, "Expect '(' after 'if'");
+        try self.expression();
+        try self.consume(TokenType.RightParen, "Expect ')' after condition");
+
+        const thenJump = self.emitJump(OpCode.op_jump_if_false);
+        self.emitOp(OpCode.op_pop);
+        try self.statement();
+
+        const elseJump = self.emitJump(OpCode.op_jump);
+
+        try self.patchJump(thenJump);
+        self.emitOp(OpCode.op_pop);
+
+        if (try self.match(TokenType.Else)) try self.statement();
+        try self.patchJump(elseJump);
     }
 
     fn beginScope(self: *Self) void {
@@ -438,7 +456,7 @@ const Parser = struct {
         while (i > 0) {
             i -= 1;
             const local = &self.compiler.locals[i];
-            
+
             if (local.depth != null and local.depth.? < self.compiler.scopeDepth) break;
 
             if (self.identifiersEqual(name, &local.name)) {
@@ -520,6 +538,25 @@ const Parser = struct {
     fn emitOpAndByte(self: *Self, code: OpCode, byte: u8) void {
         self.emitOp(code);
         self.emitByte(byte);
+    }
+
+    fn emitJump(self: *Self, code: OpCode) usize {
+        self.emitOp(code);
+        self.emitByte(0xff);
+        self.emitByte(0xff);
+        return self.chunk.code.count - 2;
+    }
+
+    fn patchJump(self: *Self, offset: usize) !void {
+        const jump = self.chunk.code.count - offset - 2;
+
+        if (jump > std.math.maxInt(u16)) {
+            self.err("Too much code to jump over");
+            return CompileError.CompileError;
+        }
+
+        self.chunk.code.items[offset] = @as(u8, @truncate(jump >> 8)) & 0xff;
+        self.chunk.code.items[offset + 1] = @as(u8, @truncate(jump)) & 0xff;
     }
 
     fn emitByte(self: *Self, byte: u8) void {

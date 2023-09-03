@@ -61,6 +61,8 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) void {
         .op_set_global => constantInstruction("OP_SET_GLOBAL", chunk, offset),
         .op_get_local => byteInstruction("OP_GET_LOCAL", chunk, offset),
         .op_set_local => byteInstruction("OP_SET_LOCAL"),
+        .op_jump => jumpInstruction("OP_JUMP", 1, chunk, offset),
+        .op_jump_if_false => jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset),
         .op_return   => simpleInstruction("OP_RETURN"),
     }
 }
@@ -80,6 +82,13 @@ fn byteInstruction(name: []const u8, chunk: *Chunk, offset: usize) void {
     const slot = chunk.code[offset + 1];
     std.debug.print("{-16s} {4d} \n", .{name, slot});
     return offset + 2;
+}
+
+fn jumpInstruction(name: []const u8, sign: usize, chunk: *Chunk, offset: usize) usize {
+    var jump = chunk.code.items[offset + 1] << 8;
+    jump |= chunk.code.items[offset + 2];
+    std.debug.print("{-16s} {4d} -> {d}\n", .{name, offset, offset + 3 + sign, * jump});
+    return offset + 3;
 }
 
 pub fn printStack(stack: []Value) void {

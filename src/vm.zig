@@ -132,6 +132,14 @@ pub const Vm = struct {
                     const slot = self.readInstruction().toU8();
                     self.stack[slot] = self.peek(0);
                 },
+                .op_jump => {
+                    const offset = self.readTwoBytes();
+                    self.ip += offset;
+                },
+                .op_jump_if_false => {
+                    const offset = self.readTwoBytes();
+                    if (isFalsey(self.peek(0))) self.ip += offset;
+                },
                 .op_return => return,
             };
         }
@@ -155,9 +163,20 @@ pub const Vm = struct {
     }
 
     inline fn readInstruction(self: *Self) OpCode {
-        const instruction = OpCode.fromU8(self.chunk.code.items[self.ip]);
+        return OpCode.fromU8(self.readByte());
+    }
+
+    inline fn readByte(self: *Self) u8 {
+        const byte = self.chunk.code.items[self.ip];
         self.ip += 1;
-        return instruction;
+        return byte;
+    }
+
+    inline fn readTwoBytes(self: *Self) u16 {
+        const b1 = @as(u16, self.chunk.code.items[self.ip]);
+        const b2 = self.chunk.code.items[self.ip + 1];
+        self.ip += 2;
+        return (b1 << 8) | b2;
     }
 
     inline fn readConstant(self: *Self) Value {
