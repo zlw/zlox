@@ -225,6 +225,8 @@ const Parser = struct {
     fn statement(self: *Self) CompileError!void {
         if (try self.match(TokenType.Print)) {
             try self.printStatement();
+        } else if (try self.match(TokenType.For)) {
+            try self.forStatement();
         } else if (try self.match(TokenType.If)) {
             try self.ifStatement();
         } else if (try self.match(TokenType.While)) {
@@ -242,6 +244,53 @@ const Parser = struct {
         try self.expression();
         try self.consume(TokenType.Semicolon, "Expected ';' after value");
         self.emitOp(OpCode.op_print);
+    }
+
+    fn forStatement(self: *Self) CompileError!void {
+        self.beginScope();
+        try self.consume(TokenType.LeftParen, "Expect '(' after 'for'");
+        
+        if (try self.match(TokenType.Semicolon)) {
+            // No initializer
+        } else if (try self.match(TokenType.Var)) {
+            try self.varDeclaration();
+        } else {
+            try self.expressionStatement();
+        }
+
+        var loopStart = self.chunk.code.count;
+        var exitJump: ?usize = null;
+
+        if(!try self.match(TokenType.Semicolon)) {
+            try self.expression();
+            try self.consume(TokenType.Semicolon, "Expect ';' after loop condition");
+
+            exitJump = self.emitJump(OpCode.op_jump_if_false);
+            self.emitOp(OpCode.op_pop);
+        }
+
+        if (!try self.match(TokenType.RightParen)) {
+            const bodyJump = self.emitJump(OpCode.op_jump);
+            const incrementStart = self.chunk.code.count;
+            
+            try self.expression();
+            self.emitOp(OpCode.op_pop);
+            try self.consume(TokenType.RightParen, "Expect ')' after for clauses");
+
+            try self.emitLoop(loopStart);
+            loopStart = incrementStart;
+            try self.patchJump(bodyJump);
+        }
+
+        try self.statement();
+        try self.emitLoop(loopStart);
+
+        if (exitJump) |jump| {
+            try self.patchJump(jump);
+            self.emitOp(OpCode.op_pop);
+        }
+
+        self.endScope();
     }
 
     fn ifStatement(self: *Self) CompileError!void {
@@ -602,7 +651,7 @@ const Parser = struct {
 
     fn emitLoop(self: *Self, loopStart: usize) !void {
         self.emitOp(OpCode.op_loop);
-        
+
         const offset = self.chunk.code.count - loopStart + 2;
         if (offset > std.math.maxInt(u16)) {
             self.err("Loop body too large");
