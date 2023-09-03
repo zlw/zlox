@@ -227,6 +227,8 @@ const Parser = struct {
             try self.printStatement();
         } else if (try self.match(TokenType.If)) {
             try self.ifStatement();
+        } else if (try self.match(TokenType.While)) {
+            try self.whileStatement();
         } else if (try self.match(TokenType.LeftBrace)) {
             self.beginScope();
             try self.block();
@@ -258,6 +260,22 @@ const Parser = struct {
 
         if (try self.match(TokenType.Else)) try self.statement();
         try self.patchJump(elseJump);
+    }
+
+    fn whileStatement(self: *Self) CompileError!void {
+        const loopStart = self.chunk.code.count;
+        try self.consume(TokenType.LeftParen, "Expect '(' after 'while'");
+        try self.expression();
+        try self.consume(TokenType.RightParen, "Expect ')' after condition");
+
+        const exitJump = self.emitJump(OpCode.op_jump_if_false);
+        self.emitOp(OpCode.op_pop);
+        try self.statement();
+
+        try self.emitLoop(loopStart);
+
+        try self.patchJump(exitJump);
+        self.emitOp(OpCode.op_pop);
     }
 
     fn beginScope(self: *Self) void {
@@ -580,6 +598,19 @@ const Parser = struct {
 
         self.chunk.code.items[offset] = @as(u8, @truncate(jump >> 8)) & 0xff;
         self.chunk.code.items[offset + 1] = @as(u8, @truncate(jump)) & 0xff;
+    }
+
+    fn emitLoop(self: *Self, loopStart: usize) !void {
+        self.emitOp(OpCode.op_loop);
+        
+        const offset = self.chunk.code.count - loopStart + 2;
+        if (offset > std.math.maxInt(u16)) {
+            self.err("Loop body too large");
+            return CompileError.CompileError;
+        }
+
+        self.emitByte(@as(u8, @truncate(offset >> 8)) & 0xff);
+        self.emitByte(@as(u8, @truncate(offset)) & 0xff);
     }
 
     fn emitByte(self: *Self, byte: u8) void {

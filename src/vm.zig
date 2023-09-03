@@ -140,6 +140,10 @@ pub const Vm = struct {
                     const offset = self.readTwoBytes();
                     if (isFalsey(self.peek(0))) self.ip += offset;
                 },
+                .op_loop => {
+                    const offset = self.readTwoBytes();
+                    self.ip -= offset;                    
+                },
                 .op_return => return,
             };
         }

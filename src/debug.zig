@@ -63,6 +63,7 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) void {
         .op_set_local => byteInstruction("OP_SET_LOCAL"),
         .op_jump => jumpInstruction("OP_JUMP", 1, chunk, offset),
         .op_jump_if_false => jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset),
+        .op_loop => jumpInstruction("OP_LOOP", -1, chunk, offset),
         .op_return   => simpleInstruction("OP_RETURN"),
     }
 }
