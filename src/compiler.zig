@@ -169,7 +169,7 @@ const Parser = struct {
     }
 
     fn expression(self: *Self) void {
-        self.parsePrecendece(.precAssignment);
+        self.parsePrecedence(.precAssignment);
     }
 
     fn match(self: *Self, token_type: TokenType) bool {
@@ -420,7 +420,7 @@ const Parser = struct {
     fn unary(self: *Self, canAssign: bool) void {
         _ = canAssign;
         const operatorType = self.previous.token_type;
-        self.parsePrecendece(.precUnary);
+        self.parsePrecedence(.precUnary);
         switch (operatorType) {
             .Bang => self.emitOp(OpCode.op_not),
             .Minus => self.emitOp(OpCode.op_negate),
@@ -432,7 +432,7 @@ const Parser = struct {
         _ = canAssign;
         const operatorType = self.previous.token_type;
         const rule = getRule(operatorType);
-        self.parsePrecendece(@enumFromInt(@intFromEnum(rule.precedence) + 1));
+        self.parsePrecedence(@enumFromInt(@intFromEnum(rule.precedence) + 1));
 
         switch (operatorType) {
             .BangEqual => self.emitOps(OpCode.op_equal, OpCode.op_not),
@@ -464,7 +464,7 @@ const Parser = struct {
         const endJump = self.emitJump(OpCode.op_jump_if_false);
 
         self.emitOp(OpCode.op_pop);
-        self.parsePrecendece(.precAnd);
+        self.parsePrecedence(.precAnd);
 
         self.patchJump(endJump);
     }
@@ -477,12 +477,12 @@ const Parser = struct {
         self.patchJump(elseJump);
         self.emitOp(OpCode.op_pop);
 
-        self.parsePrecendece(.precOr);
+        self.parsePrecedence(.precOr);
 
         self.patchJump(endJump);
     }
 
-    fn parsePrecendece(self: *Self, precedence: Precedence) void {
+    fn parsePrecedence(self: *Self, precedence: Precedence) void {
         self.advance();
         const prefixRule = getRule(self.previous.token_type).prefix orelse {
             self.err("Expect expression");
