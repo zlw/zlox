@@ -31,17 +31,17 @@ pub fn compile(vm: *Vm, source: []const u8, chunk: *Chunk) CompileError!void {
 }
 
 const Precedence = enum {
-    precNone,
-    precAssignment, // =
-    precOr, // or
-    precAnd, // and
-    precEquality, // == !=
-    precComparison, // < > <= >=
-    precTerm, // + -
-    precFactor, // * /
-    precUnary, // ! -
-    precCall, // . ()
-    precPrimary,
+    None,
+    Assignment, // =
+    Or, // or
+    And, // and
+    Equality, // == !=
+    Comparison, // < > <= >=
+    Term, // + -
+    Factor, // * /
+    Unary, // ! -
+    Call, // . ()
+    Primary,
 };
 
 const ParseFn = *const fn (parser: *Parser, canAssign: bool) void;
@@ -66,46 +66,46 @@ fn getRule(token_type: TokenType) ParseRule {
     }
 
     const rule = switch (token_type) {
-        .LeftParen => ParseRule.init(Parser.grouping, null, .precNone),
-        .RightParen => ParseRule.init(null, null, .precNone),
-        .LeftBrace => ParseRule.init(null, null, .precNone),
-        .RightBrace => ParseRule.init(null, null, .precNone),
-        .Comma => ParseRule.init(null, null, .precNone),
-        .Dot => ParseRule.init(null, null, .precNone),
-        .Minus => ParseRule.init(Parser.unary, Parser.binary, .precTerm),
-        .Plus => ParseRule.init(null, Parser.binary, .precTerm),
-        .Semicolon => ParseRule.init(null, null, .precNone),
-        .Slash => ParseRule.init(null, Parser.binary, .precFactor),
-        .Star => ParseRule.init(null, Parser.binary, .precFactor),
-        .Bang => ParseRule.init(Parser.unary, null, .precNone),
-        .BangEqual => ParseRule.init(null, Parser.binary, .precEquality),
-        .Equal => ParseRule.init(null, null, .precNone),
-        .EqualEqual => ParseRule.init(null, Parser.binary, .precEquality),
-        .Greater => ParseRule.init(null, Parser.binary, .precComparison),
-        .GreaterEqual => ParseRule.init(null, Parser.binary, .precComparison),
-        .Less => ParseRule.init(null, Parser.binary, .precComparison),
-        .LessEqual => ParseRule.init(null, Parser.binary, .precComparison),
-        .Identifier => ParseRule.init(Parser.variable, null, .precNone),
-        .String => ParseRule.init(Parser.string, null, .precNone),
-        .Number => ParseRule.init(Parser.number, null, .precNone),
-        .And => ParseRule.init(null, Parser.logical_and, .precAnd),
-        .Class => ParseRule.init(null, null, .precNone),
-        .Else => ParseRule.init(null, null, .precNone),
-        .False => ParseRule.init(Parser.literal, null, .precNone),
-        .For => ParseRule.init(null, null, .precNone),
-        .Fun => ParseRule.init(null, null, .precNone),
-        .If => ParseRule.init(null, null, .precNone),
-        .Nil => ParseRule.init(Parser.literal, null, .precNone),
-        .Or => ParseRule.init(null, Parser.logical_or, .precOr),
-        .Print => ParseRule.init(null, null, .precNone),
-        .Return => ParseRule.init(null, null, .precNone),
-        .Super => ParseRule.init(null, null, .precNone),
-        .This => ParseRule.init(null, null, .precNone),
-        .True => ParseRule.init(Parser.literal, null, .precNone),
-        .Var => ParseRule.init(null, null, .precNone),
-        .While => ParseRule.init(null, null, .precNone),
-        .Error => ParseRule.init(null, null, .precNone),
-        .Eof => ParseRule.init(null, null, .precNone),
+        .LeftParen => ParseRule.init(Parser.grouping, null, Precedence.None),
+        .RightParen => ParseRule.init(null, null, Precedence.None),
+        .LeftBrace => ParseRule.init(null, null, Precedence.None),
+        .RightBrace => ParseRule.init(null, null, Precedence.None),
+        .Comma => ParseRule.init(null, null, Precedence.None),
+        .Dot => ParseRule.init(null, null, Precedence.None),
+        .Minus => ParseRule.init(Parser.unary, Parser.binary, Precedence.Term),
+        .Plus => ParseRule.init(null, Parser.binary, Precedence.Term),
+        .Semicolon => ParseRule.init(null, null, Precedence.None),
+        .Slash => ParseRule.init(null, Parser.binary, Precedence.Factor),
+        .Star => ParseRule.init(null, Parser.binary, Precedence.Factor),
+        .Bang => ParseRule.init(Parser.unary, null, Precedence.None),
+        .BangEqual => ParseRule.init(null, Parser.binary, Precedence.Equality),
+        .Equal => ParseRule.init(null, null, Precedence.None),
+        .EqualEqual => ParseRule.init(null, Parser.binary, Precedence.Equality),
+        .Greater => ParseRule.init(null, Parser.binary, Precedence.Comparison),
+        .GreaterEqual => ParseRule.init(null, Parser.binary, Precedence.Comparison),
+        .Less => ParseRule.init(null, Parser.binary, Precedence.Comparison),
+        .LessEqual => ParseRule.init(null, Parser.binary, Precedence.Comparison),
+        .Identifier => ParseRule.init(Parser.variable, null, Precedence.None),
+        .String => ParseRule.init(Parser.string, null, Precedence.None),
+        .Number => ParseRule.init(Parser.number, null, Precedence.None),
+        .And => ParseRule.init(null, Parser.logical_and, Precedence.And),
+        .Class => ParseRule.init(null, null, Precedence.None),
+        .Else => ParseRule.init(null, null, Precedence.None),
+        .False => ParseRule.init(Parser.literal, null, Precedence.None),
+        .For => ParseRule.init(null, null, Precedence.None),
+        .Fun => ParseRule.init(null, null, Precedence.None),
+        .If => ParseRule.init(null, null, Precedence.None),
+        .Nil => ParseRule.init(Parser.literal, null, Precedence.None),
+        .Or => ParseRule.init(null, Parser.logical_or, Precedence.Or),
+        .Print => ParseRule.init(null, null, Precedence.None),
+        .Return => ParseRule.init(null, null, Precedence.None),
+        .Super => ParseRule.init(null, null, Precedence.None),
+        .This => ParseRule.init(null, null, Precedence.None),
+        .True => ParseRule.init(Parser.literal, null, Precedence.None),
+        .Var => ParseRule.init(null, null, Precedence.None),
+        .While => ParseRule.init(null, null, Precedence.None),
+        .Error => ParseRule.init(null, null, Precedence.None),
+        .Eof => ParseRule.init(null, null, Precedence.None),
     };
 
     if (comptime debug_rule_selection) {
@@ -169,7 +169,7 @@ const Parser = struct {
     }
 
     fn expression(self: *Self) void {
-        self.parsePrecedence(.precAssignment);
+        self.parsePrecedence(Precedence.Assignment);
     }
 
     fn match(self: *Self, token_type: TokenType) bool {
@@ -247,7 +247,7 @@ const Parser = struct {
     fn forStatement(self: *Self) void {
         self.beginScope();
         self.consume(TokenType.LeftParen, "Expect '(' after 'for'");
-        
+
         if (self.match(TokenType.Semicolon)) {
             // No initializer
         } else if (self.match(TokenType.Var)) {
@@ -259,7 +259,7 @@ const Parser = struct {
         var loopStart = self.chunk.code.count;
         var exitJump: ?usize = null;
 
-        if(!self.match(TokenType.Semicolon)) {
+        if (!self.match(TokenType.Semicolon)) {
             self.expression();
             self.consume(TokenType.Semicolon, "Expect ';' after loop condition");
 
@@ -270,7 +270,7 @@ const Parser = struct {
         if (!self.match(TokenType.RightParen)) {
             const bodyJump = self.emitJump(OpCode.op_jump);
             const incrementStart = self.chunk.code.count;
-            
+
             self.expression();
             self.emitOp(OpCode.op_pop);
             self.consume(TokenType.RightParen, "Expect ')' after for clauses");
@@ -306,7 +306,7 @@ const Parser = struct {
         self.emitOp(OpCode.op_pop);
 
         if (self.match(TokenType.Else)) self.statement();
-        
+
         self.patchJump(elseJump);
     }
 
@@ -420,7 +420,7 @@ const Parser = struct {
     fn unary(self: *Self, canAssign: bool) void {
         _ = canAssign;
         const operatorType = self.previous.token_type;
-        self.parsePrecedence(.precUnary);
+        self.parsePrecedence(Precedence.Unary);
         switch (operatorType) {
             .Bang => self.emitOp(OpCode.op_not),
             .Minus => self.emitOp(OpCode.op_negate),
@@ -464,7 +464,7 @@ const Parser = struct {
         const endJump = self.emitJump(OpCode.op_jump_if_false);
 
         self.emitOp(OpCode.op_pop);
-        self.parsePrecedence(.precAnd);
+        self.parsePrecedence(Precedence.And);
 
         self.patchJump(endJump);
     }
@@ -477,7 +477,7 @@ const Parser = struct {
         self.patchJump(elseJump);
         self.emitOp(OpCode.op_pop);
 
-        self.parsePrecedence(.precOr);
+        self.parsePrecedence(Precedence.Or);
 
         self.patchJump(endJump);
     }
@@ -489,7 +489,7 @@ const Parser = struct {
             return;
         };
 
-        const canAssign = @intFromEnum(precedence) <= @intFromEnum(Precedence.precAssignment);
+        const canAssign = @intFromEnum(precedence) <= @intFromEnum(Precedence.Assignment);
         prefixRule(self, canAssign);
 
         while (@intFromEnum(precedence) <= @intFromEnum(getRule(self.current.token_type).precedence)) {
@@ -582,7 +582,6 @@ const Parser = struct {
     fn errAt(self: *Self, token: Token, message: []const u8) void {
         if (self.panicMode) return;
         self.panicMode = true;
-
 
         errout.print("[line {d}] Error", .{token.line}) catch unreachable;
 
