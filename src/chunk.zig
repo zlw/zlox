@@ -39,13 +39,6 @@ pub const OpCode = enum(u8) {
     pub fn fromU8(n: u8) Self {
         return @enumFromInt(n);
     }
-
-    pub fn operands(self: *Self) usize {
-        return switch (self) {
-            .op_constant => 1,
-            else => 0,
-        };
-    }
 };
 
 pub const Chunk = struct {

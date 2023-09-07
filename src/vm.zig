@@ -14,7 +14,7 @@ const compile = @import("./compiler.zig").compile;
 
 const debug_trace_execution = debug.debug_trace_execution;
 const debug_stack_execution = debug.debug_stack_execution;
-const debug_garbace_collection = debug.debug_garbage_collection;
+const debug_garbage_collection = debug.debug_garbage_collection;
 const stack_max = 256;
 
 pub const InterpretError = error{
@@ -65,7 +65,7 @@ pub const Vm = struct {
                 debug.printStack(self.stack[0..self.stack_top]);
             }
             if (comptime debug_trace_execution) {
-                debug.disassembleInstruction(self.chunk, self.ip);
+                _ = debug.disassembleInstruction(self.chunk, self.ip);
             }
 
             const instruction = self.readInstruction();
@@ -288,7 +288,7 @@ pub const Vm = struct {
         var total_objects: u64 = 0;
 
         while (obj) |object| {
-            if (comptime debug_garbace_collection) {
+            if (comptime debug_garbage_collection) {
                 total_objects += 1;
             }
             const next = object.next;
@@ -296,7 +296,7 @@ pub const Vm = struct {
             obj = next;
         }
 
-        if (comptime debug_garbace_collection) {
+        if (comptime debug_garbage_collection) {
             std.debug.print("Objects freed {d}\n", .{total_objects});
         }
     }

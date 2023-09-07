@@ -18,8 +18,8 @@ pub fn main() anyerror!u8 {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    if (comptime debug_garbage_collection) {
-        defer {
+    defer {
+        if (comptime debug_garbage_collection) {
             const has_leaked = gpa.detectLeaks();
             std.log.debug("Has leaked: {}\n", .{has_leaked});
         }

@@ -10,7 +10,9 @@ const Vm = @import("./vm.zig").Vm;
 
 const errout = std.io.getStdErr().writer();
 
-const debug_rule_selection = @import("./debug.zig").debug_rule_selection;
+const debug = @import("./debug.zig");
+const debug_rule_selection = debug.debug_rule_selection;
+const debug_print_code = debug.debug_print_code;
 const locals_max = std.math.maxInt(u8) + 1;
 
 const CompileError = error{ CompileError, TooManyConstants };
@@ -666,5 +668,11 @@ const Parser = struct {
 
     fn endCompiler(self: *Self) void {
         self.emitOp(OpCode.op_return);
+
+        if (comptime debug_print_code) {
+            if (!self.hadError) {
+                debug.disassembleChunk(self.chunk, "code");
+            }
+        }
     }
 };
