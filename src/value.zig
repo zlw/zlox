@@ -49,6 +49,11 @@ pub fn printValue(boxed: Value) void {
         .nil => stdout.print("nil\n", .{}) catch @panic(msg),
         .object => |value| switch (value.objectType) {
             .String => stdout.print("{s}\n", .{value.asString().chars}) catch @panic(msg),
+            .Function => {
+                const name = if (value.asFunction().name) |name| name.chars else "script";
+                stdout.print("<fn {s}>\n", .{name}) catch @panic(msg);
+            },
+
         },
     }
 }
