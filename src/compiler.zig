@@ -150,6 +150,10 @@ const Parser = struct {
         return Self{ .vm = vm, .scanner = scanner, .compiler = Compiler.init(), .chunk = chunk };
     }
 
+    fn currentChunk(self: *Self) *Chunk {
+        return self.chunk;
+    }
+
     fn advance(self: *Self) void {
         self.previous = self.current;
 
@@ -258,7 +262,7 @@ const Parser = struct {
             self.expressionStatement();
         }
 
-        var loopStart = self.chunk.code.count;
+        var loopStart = self.currentChunk().code.count;
         var exitJump: ?usize = null;
 
         if (!self.match(TokenType.Semicolon)) {
@@ -271,7 +275,7 @@ const Parser = struct {
 
         if (!self.match(TokenType.RightParen)) {
             const bodyJump = self.emitJump(OpCode.op_jump);
-            const incrementStart = self.chunk.code.count;
+            const incrementStart = self.currentChunk().code.count;
 
             self.expression();
             self.emitOp(OpCode.op_pop);
@@ -313,7 +317,7 @@ const Parser = struct {
     }
 
     fn whileStatement(self: *Self) void {
-        const loopStart = self.chunk.code.count;
+        const loopStart = self.currentChunk().code.count;
         self.consume(TokenType.LeftParen, "Expect '(' after 'while'");
         self.expression();
         self.consume(TokenType.RightParen, "Expect ')' after condition");
@@ -604,7 +608,7 @@ const Parser = struct {
     }
 
     fn makeConstant(self: *Self, value: Value) u8 {
-        const constant = self.chunk.addConstant(value) catch {
+        const constant = self.currentChunk().addConstant(value) catch {
             self.err("Err adding constant");
         };
 
@@ -633,24 +637,24 @@ const Parser = struct {
         self.emitOp(code);
         self.emitByte(0xff);
         self.emitByte(0xff);
-        return self.chunk.code.count - 2;
+        return self.currentChunk().code.count - 2;
     }
 
     fn patchJump(self: *Self, offset: usize) void {
-        const jump = self.chunk.code.count - offset - 2;
+        const jump = self.currentChunk().code.count - offset - 2;
 
         if (jump > std.math.maxInt(u16)) {
             self.err("Too much code to jump over");
         }
 
-        self.chunk.code.items[offset] = @as(u8, @truncate(jump >> 8)) & 0xff;
-        self.chunk.code.items[offset + 1] = @as(u8, @truncate(jump)) & 0xff;
+        self.currentChunk().code.items[offset] = @as(u8, @truncate(jump >> 8)) & 0xff;
+        self.currentChunk().code.items[offset + 1] = @as(u8, @truncate(jump)) & 0xff;
     }
 
     fn emitLoop(self: *Self, loopStart: usize) void {
         self.emitOp(OpCode.op_loop);
 
-        const offset = self.chunk.code.count - loopStart + 2;
+        const offset = self.currentChunk().code.count - loopStart + 2;
         if (offset > std.math.maxInt(u16)) {
             self.err("Loop body too large");
         }
@@ -660,7 +664,7 @@ const Parser = struct {
     }
 
     fn emitByte(self: *Self, byte: u8) void {
-        self.chunk.write(byte, self.previous.line) catch |e| {
+        self.currentChunk().write(byte, self.previous.line) catch |e| {
             std.log.err("Error {any} trying to emit byte", .{e});
             std.process.exit(1);
         };
@@ -671,7 +675,7 @@ const Parser = struct {
 
         if (comptime debug_print_code) {
             if (!self.hadError) {
-                debug.disassembleChunk(self.chunk, "code");
+                debug.disassembleChunk(self.currentChunk(), "code");
             }
         }
     }
