@@ -17,9 +17,10 @@ const locals_max = std.math.maxInt(u8) + 1;
 
 const CompileError = error{ CompileError, TooManyConstants };
 
-pub fn compile(vm: *Vm, source: []const u8, chunk: *Chunk) CompileError!void {
+pub fn compile(vm: *Vm, source: []const u8) CompileError!*Object.Function {
     var scanner = Scanner.init(source);
-    var parser = Parser.init(vm, &scanner, chunk);
+    var compiler = Compiler.init(vm, FunctionType.Script);
+    var parser = Parser.init(vm, &scanner, &compiler);
 
     parser.advance();
 
@@ -27,9 +28,9 @@ pub fn compile(vm: *Vm, source: []const u8, chunk: *Chunk) CompileError!void {
         parser.declaration();
     }
     parser.consume(.Eof, "Expect end of expression");
-    parser.endCompiler();
+    const function = parser.endCompiler();
 
-    if (parser.hadError) return CompileError.CompileError;
+    return if (parser.hadError) CompileError.CompileError else function;
 }
 
 const Precedence = enum {
@@ -117,15 +118,27 @@ fn getRule(token_type: TokenType) ParseRule {
     return rule;
 }
 
+const FunctionType = enum { Function, Script };
+
 const Compiler = struct {
     const Self = @This();
+
+    function: *Object.Function,
+    functionType: FunctionType,
 
     locals: [locals_max]Local = undefined,
     localCount: u8 = 0,
     scopeDepth: u32 = 0,
 
-    fn init() Self {
-        return Self{};
+    fn init(vm: *Vm, functionType: FunctionType) Self {
+        var compiler = Self{ .function = Object.Function.create(vm), .functionType = functionType };
+        
+        var local = compiler.locals[compiler.localCount];
+        compiler.localCount += 1;
+        local.depth = 0;
+        local.name.lexeme = "";
+
+        return compiler;
     }
 };
 
@@ -141,17 +154,16 @@ const Parser = struct {
     current: Token = undefined,
     previous: Token = undefined,
     scanner: *Scanner,
-    compiler: Compiler,
-    chunk: *Chunk,
+    compiler: *Compiler,
     hadError: bool = false,
     panicMode: bool = false,
 
-    pub fn init(vm: *Vm, scanner: *Scanner, chunk: *Chunk) Self {
-        return Self{ .vm = vm, .scanner = scanner, .compiler = Compiler.init(), .chunk = chunk };
+    pub fn init(vm: *Vm, scanner: *Scanner, compiler: *Compiler) Self {
+        return Self{ .vm = vm, .scanner = scanner, .compiler = compiler };
     }
 
     fn currentChunk(self: *Self) *Chunk {
-        return self.chunk;
+        return &self.compiler.function.chunk;
     }
 
     fn advance(self: *Self) void {
@@ -670,13 +682,17 @@ const Parser = struct {
         };
     }
 
-    fn endCompiler(self: *Self) void {
+    fn endCompiler(self: *Self) *Object.Function {
         self.emitOp(OpCode.op_return);
+        const function = self.compiler.function;
 
         if (comptime debug_print_code) {
             if (!self.hadError) {
-                debug.disassembleChunk(self.currentChunk(), "code");
+                const name = if(function.name) |n| n.chars else "<script>";
+                debug.disassembleChunk(self.currentChunk(), name);
             }
         }
+
+        return function;
     }
 };

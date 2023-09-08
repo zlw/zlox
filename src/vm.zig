@@ -48,12 +48,9 @@ pub const Vm = struct {
     }
 
     pub fn interpret(self: *Self, source: []const u8) InterpretError!void {
-        var chunk = Chunk.init(self.allocator);
-        defer chunk.deinit();
+        const function = compile(self, source) catch return InterpretError.CompileError;
 
-        compile(self, source, &chunk) catch return InterpretError.CompileError;
-
-        self.chunk = &chunk;
+        self.chunk = &function.chunk;
         self.ip = 0;
 
         return self.run();
