@@ -62,7 +62,7 @@ pub const Vm = struct {
                 debug.printStack(self.stack[0..self.stack_top]);
             }
             if (comptime debug_trace_execution) {
-                _ = debug.disassembleInstruction(self.chunk, self.ip);
+                _ = debug.disassembleInstruction(self.currentChunk() , self.ip);
             }
 
             const instruction = self.readInstruction();
@@ -146,11 +146,11 @@ pub const Vm = struct {
         }
     }
 
-    pub fn resetStack(self: *Self) void {
+    fn resetStack(self: *Self) void {
         self.stack_top = 0;
     }
 
-    pub inline fn push(self: *Self, value: Value) void {
+    inline fn push(self: *Self, value: Value) void {
         self.stack[self.stack_top] = value;
         self.stack_top += 1;
     }
@@ -158,7 +158,7 @@ pub const Vm = struct {
     fn peek(self: *Self, back: usize) Value {
         return self.stack[self.stack_top - 1 - back];
     }
-    pub inline fn pop(self: *Self) Value {
+    inline fn pop(self: *Self) Value {
         self.stack_top -= 1;
         return self.stack[self.stack_top];
     }
@@ -168,28 +168,30 @@ pub const Vm = struct {
     }
 
     inline fn readByte(self: *Self) u8 {
-        const byte = self.chunk.code.items[self.ip];
+        const byte = self.currentChunk().code.items[self.ip];
         self.ip += 1;
         return byte;
     }
 
     inline fn readTwoBytes(self: *Self) u16 {
-        const b1 = @as(u16, self.chunk.code.items[self.ip]);
-        const b2 = self.chunk.code.items[self.ip + 1];
+        const b1 = @as(u16, self.currentChunk().code.items[self.ip]);
+        const b2 = self.currentChunk().code.items[self.ip + 1];
         self.ip += 2;
         return (b1 << 8) | b2;
     }
 
     inline fn readConstant(self: *Self) Value {
-        const constant = self.chunk.constants.items[self.chunk.code.items[self.ip]];
+        const constant = self.currentChunk().constants.items[self.currentChunk().code.items[self.ip]];
         self.ip += 1;
         return constant;
     }
 
     fn runtimeError(self: *Self, comptime message: []const u8, args: anytype) void {
+        @setCold(true);
+
         const err_writer = std.io.getStdErr().writer();
 
-        err_writer.print("[line {d}] Error in script: ", .{self.chunk.lines.items[self.ip]}) catch {};
+        err_writer.print("[line {d}] Error in script: ", .{self.currentChunk().lines.items[self.ip]}) catch {};
         err_writer.print(message ++ ".\n", args) catch {};
 
         self.resetStack();
@@ -296,6 +298,10 @@ pub const Vm = struct {
         if (comptime debug_garbage_collection) {
             std.debug.print("Objects freed {d}\n", .{total_objects});
         }
+    }
+
+    fn currentChunk(self: *Self) *Chunk {
+        return self.chunk;
     }
 };
 
