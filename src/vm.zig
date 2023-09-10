@@ -15,7 +15,9 @@ const compile = @import("./compiler.zig").compile;
 const debug_trace_execution = debug.debug_trace_execution;
 const debug_stack_execution = debug.debug_stack_execution;
 const debug_garbage_collection = debug.debug_garbage_collection;
-const stack_max = 256;
+
+const frames_max = 64;
+const stack_max = frames_max * std.math.maxInt(u8);
 
 pub const InterpretError = error{
     CompileError,
@@ -25,11 +27,17 @@ pub const InterpretError = error{
 const BinaryOp = enum { add, sub, mul, div };
 const CompOp = enum { gt, lt };
 
+const CallFrame = struct {
+    function: *Object.Function,
+    ip: usize = 0,
+    slots: usize = 0,
+};
+
 pub const Vm = struct {
     const Self = @This();
 
-    chunk: *Chunk = undefined,
-    ip: usize = 0,
+    frames: [frames_max]CallFrame = undefined,
+    framesCount: usize = 0,
     stack: [stack_max]Value = undefined,
     stack_top: usize = 0,
     strings: Table,
@@ -50,10 +58,24 @@ pub const Vm = struct {
     pub fn interpret(self: *Self, source: []const u8) InterpretError!void {
         const function = compile(self, source) catch return InterpretError.CompileError;
 
-        self.chunk = &function.chunk;
-        self.ip = 0;
+        self.push(Value.ObjectValue(&function.object));
 
+        var frame = &self.frames[self.framesCount];
+        self.framesCount += 1;
+
+        frame.function = function;
+        frame.ip = 0;
+        frame.slots = self.stack_top - 1;
+        
         return self.run();
+    }
+
+    fn currentChunk(self: *Self) *Chunk {
+        return &self.currentFrame().function.chunk;
+    }
+
+    fn currentFrame(self: *Self) *CallFrame {
+        return &self.frames[self.framesCount - 1];
     }
 
     pub fn run(self: *Self) InterpretError!void {
@@ -62,7 +84,7 @@ pub const Vm = struct {
                 debug.printStack(self.stack[0..self.stack_top]);
             }
             if (comptime debug_trace_execution) {
-                _ = debug.disassembleInstruction(self.currentChunk() , self.ip);
+                _ = debug.disassembleInstruction(self.currentChunk() , self.currentFrame().ip);
             }
 
             const instruction = self.readInstruction();
@@ -123,23 +145,23 @@ pub const Vm = struct {
                 },
                 .op_get_local => {
                     const slot = self.readInstruction().toU8();
-                    self.push(self.stack[slot]);
+                    self.push(self.stack[self.currentFrame().slots + slot]);
                 },
                 .op_set_local => {
                     const slot = self.readInstruction().toU8();
-                    self.stack[slot] = self.peek(0);
+                    self.stack[self.currentFrame().slots + slot] = self.peek(0);
                 },
                 .op_jump => {
                     const offset = self.readTwoBytes();
-                    self.ip += offset;
+                    self.currentFrame().ip += offset;
                 },
                 .op_jump_if_false => {
                     const offset = self.readTwoBytes();
-                    if (isFalsey(self.peek(0))) self.ip += offset;
+                    if (isFalsey(self.peek(0))) self.currentFrame().ip += offset;
                 },
                 .op_loop => {
                     const offset = self.readTwoBytes();
-                    self.ip -= offset;                    
+                    self.currentFrame().ip -= offset;                    
                 },
                 .op_return => return,
             };
@@ -168,21 +190,21 @@ pub const Vm = struct {
     }
 
     inline fn readByte(self: *Self) u8 {
-        const byte = self.currentChunk().code.items[self.ip];
-        self.ip += 1;
+        const byte = self.currentChunk().code.items[self.currentFrame().ip];
+        self.currentFrame().ip += 1;
         return byte;
     }
 
     inline fn readTwoBytes(self: *Self) u16 {
-        const b1 = @as(u16, self.currentChunk().code.items[self.ip]);
-        const b2 = self.currentChunk().code.items[self.ip + 1];
-        self.ip += 2;
+        const b1 = @as(u16, self.currentChunk().code.items[self.currentFrame().ip]);
+        const b2 = self.currentChunk().code.items[self.currentFrame().ip + 1];
+        self.currentFrame().ip += 2;
         return (b1 << 8) | b2;
     }
 
     inline fn readConstant(self: *Self) Value {
-        const constant = self.currentChunk().constants.items[self.currentChunk().code.items[self.ip]];
-        self.ip += 1;
+        const constant = self.currentChunk().constants.items[self.currentChunk().code.items[self.currentFrame().ip]];
+        self.currentFrame().ip += 1;
         return constant;
     }
 
@@ -191,7 +213,7 @@ pub const Vm = struct {
 
         const err_writer = std.io.getStdErr().writer();
 
-        err_writer.print("[line {d}] Error in script: ", .{self.currentChunk().lines.items[self.ip]}) catch {};
+        err_writer.print("[line {d}] Error in script: ", .{self.currentChunk().lines.items[self.currentFrame().ip]}) catch {};
         err_writer.print(message ++ ".\n", args) catch {};
 
         self.resetStack();
@@ -298,10 +320,6 @@ pub const Vm = struct {
         if (comptime debug_garbage_collection) {
             std.debug.print("Objects freed {d}\n", .{total_objects});
         }
-    }
-
-    fn currentChunk(self: *Self) *Chunk {
-        return self.chunk;
     }
 };
 
