@@ -123,6 +123,8 @@ const FunctionType = enum { Function, Script };
 const Compiler = struct {
     const Self = @This();
 
+    enclosing: ?*Compiler = null,
+
     function: *Object.Function,
     functionType: FunctionType,
 
@@ -132,7 +134,7 @@ const Compiler = struct {
 
     fn init(vm: *Vm, functionType: FunctionType) Self {
         var compiler = Self{ .function = Object.Function.create(vm), .functionType = functionType };
-        
+
         var local = compiler.locals[compiler.localCount];
         compiler.localCount += 1;
         local.depth = 0;
@@ -202,7 +204,9 @@ const Parser = struct {
     }
 
     fn declaration(self: *Self) void {
-        if (self.match(TokenType.Var)) {
+        if (self.match(TokenType.Fun)) {
+            self.funDeclaration();
+        } else if (self.match(TokenType.Var)) {
             self.varDeclaration();
         } else {
             self.statement();
@@ -222,6 +226,49 @@ const Parser = struct {
                 else => self.advance(),
             }
         }
+    }
+
+    fn funDeclaration(self: *Self) void {
+        const global = self.parseVariable("Expect function name");
+        self.markInitialized();
+        self.compileFunction(FunctionType.Function);
+        self.defineVariable(global);
+    }
+
+    fn compileFunction(self: *Self, functionType: FunctionType) void {
+        var functionCompiler = Compiler.init(self.vm, functionType);
+        functionCompiler.enclosing = self.compiler;
+        self.compiler = &functionCompiler;
+        // book does this in initCompiler which is our Compiler.init,
+        // but I don't see a reason why if we're setting function.arity here, we can as well set it's name
+        // that way we don't need to make Compiler depend on the Parser which would create bi-directional dependency
+        functionCompiler.function.name = Object.String.copy(self.vm, self.previous.lexeme);
+
+        self.beginScope();
+
+        self.consume(TokenType.LeftParen, "Expect '(' after function name");
+        if (!self.check(TokenType.RightParen)) {
+            while (true) {
+                self.compiler.function.arity += 1;
+
+                if (self.compiler.function.arity > 255) {
+                    self.errAtCurrent("Can't have more than 255 parameters");
+                }
+
+                const parameter = self.parseVariable("Expect parameter name");
+                self.defineVariable(parameter);
+
+                if (!self.match(TokenType.Comma)) break;
+            }
+        }
+        self.consume(TokenType.RightParen, "Expect ')' after parameters");
+        self.consume(TokenType.LeftBrace, "Expect '{' before function body");
+
+        self.block();
+
+        const function = self.endCompiler();
+
+        self.emitOpAndByte(OpCode.op_constant, self.makeConstant(Value.ObjectValue(&function.object)));
     }
 
     fn varDeclaration(self: *Self) void {
@@ -551,6 +598,7 @@ const Parser = struct {
     }
 
     fn markInitialized(self: *Self) void {
+        if (self.compiler.scopeDepth == 0) return;
         self.compiler.locals[self.compiler.localCount - 1].depth = self.compiler.scopeDepth;
     }
 
@@ -688,11 +736,12 @@ const Parser = struct {
 
         if (comptime debug_print_code) {
             if (!self.hadError) {
-                const name = if(function.name) |n| n.chars else "<script>";
+                const name = if (function.name) |n| n.chars else "<script>";
                 debug.disassembleChunk(self.currentChunk(), name);
             }
         }
 
+        if (self.compiler.enclosing) |enclosing| self.compiler = enclosing;
         return function;
     }
 };
