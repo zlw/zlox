@@ -160,7 +160,20 @@ pub const Vm = struct {
                     const argCount = self.readByte();
                     if (!self.callValue(self.peek(argCount), argCount)) return InterpretError.RuntimeError;
                 },
-                .op_return => return,
+                .op_return => {
+                    const result = self.pop();
+                    self.framesCount -= 1;
+
+                    if (self.framesCount == 0) {
+                        _ = self.pop();
+                        return;
+                    }
+
+                    std.debug.print("stack_top: {}\nslots: {}\n", .{self.stack_top, self.currentFrame().slots});
+
+                    self.stack_top -= self.currentFrame().slots;
+                    self.push(result);                    
+                },
             };
         }
     }

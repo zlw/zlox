@@ -297,6 +297,8 @@ const Parser = struct {
             self.forStatement();
         } else if (self.match(TokenType.If)) {
             self.ifStatement();
+        } else if (self.match(TokenType.Return)) {
+            self.returnStatement();
         } else if (self.match(TokenType.While)) {
             self.whileStatement();
         } else if (self.match(TokenType.LeftBrace)) {
@@ -378,6 +380,18 @@ const Parser = struct {
         if (self.match(TokenType.Else)) self.statement();
 
         self.patchJump(elseJump);
+    }
+
+    fn returnStatement(self: *Self) void {
+        if (self.compiler.functionType == FunctionType.Script) self.err("Can't return from top-level code");
+
+        if (self.match(TokenType.Semicolon)) {
+            self.emitReturn();
+        } else {
+            self.expression();
+            self.consume(TokenType.Semicolon, "Expect ';' after return value");
+            self.emitOp(OpCode.op_return);
+        }
     }
 
     fn whileStatement(self: *Self) void {
@@ -764,7 +778,7 @@ const Parser = struct {
     }
 
     fn endCompiler(self: *Self) *Object.Function {
-        self.emitOp(OpCode.op_return);
+        self.emitReturn();
         const function = self.compiler.function;
 
         if (comptime debug_print_code) {
@@ -776,5 +790,11 @@ const Parser = struct {
 
         if (self.compiler.enclosing) |enclosing| self.compiler = enclosing;
         return function;
+    }
+
+    fn emitReturn(self: *Self) void {
+        self.emitOp(OpCode.op_nil);
+        self.emitOp(OpCode.op_return);
+
     }
 };
