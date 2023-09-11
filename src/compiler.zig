@@ -582,13 +582,11 @@ const Parser = struct {
 
         while (@intFromEnum(precedence) <= @intFromEnum(getRule(self.current.token_type).precedence)) {
             self.advance();
-            const rule = getRule(self.previous.token_type);
-
-            const infixRule = rule.infix orelse {
-                self.err("Unreachable????");
+            const infixRule = getRule(self.previous.token_type).infix orelse {
+                self.err("Expect expression");
                 return;
             };
-
+            
             infixRule(self, canAssign);
         }
 
