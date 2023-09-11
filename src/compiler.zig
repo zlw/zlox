@@ -129,18 +129,16 @@ const Compiler = struct {
     functionType: FunctionType,
 
     locals: [locals_max]Local = undefined,
-    localCount: u8 = 0,
+    localCount: u16 = 0,
     scopeDepth: u32 = 0,
 
     fn init(vm: *Vm, functionType: FunctionType) Self {
         var compiler = Self{ .function = Object.Function.create(vm), .functionType = functionType };
 
-        if (functionType == FunctionType.Script) {
-            var local = &compiler.locals[compiler.localCount];
-            compiler.localCount += 1;
-            local.depth = 0;
-            local.name.lexeme = "";
-        }
+        var local = &compiler.locals[compiler.localCount];
+        compiler.localCount += 1;
+        local.depth = 0;
+        local.name.lexeme = "";
 
 
         return compiler;
@@ -629,7 +627,7 @@ const Parser = struct {
             while (true) {
                 self.expression();
 
-                if (argCount == 255) {
+                if (argCount >= 255) {
                     self.err("Can't have more than 255 arguments");
                     break;
                 }
