@@ -81,7 +81,7 @@ pub const Vm = struct {
                 debug.printStack(self.stack[0..self.stack_top]);
             }
             if (comptime debug_trace_execution) {
-                _ = debug.disassembleInstruction(self.currentChunk() , self.currentFrame().ip);
+                _ = debug.disassembleInstruction(self.currentChunk(), self.currentFrame().ip);
             }
 
             const instruction = self.readInstruction();
@@ -138,7 +138,6 @@ pub const Vm = struct {
                         self.runtimeError("Undefined variable '{s}'", .{name.chars});
                         return InterpretError.RuntimeError;
                     }
-                    
                 },
                 .op_get_local => {
                     const slot = self.readInstruction().toU8();
@@ -158,7 +157,7 @@ pub const Vm = struct {
                 },
                 .op_loop => {
                     const offset = self.readTwoBytes();
-                    self.currentFrame().ip -= offset;                    
+                    self.currentFrame().ip -= offset;
                 },
                 .op_call => {
                     const argCount = self.readByte();
@@ -166,6 +165,7 @@ pub const Vm = struct {
                 },
                 .op_return => {
                     const result = self.pop();
+                    const frame = self.currentFrame();
                     self.framesCount -= 1;
 
                     if (self.framesCount == 0) {
@@ -173,8 +173,8 @@ pub const Vm = struct {
                         return;
                     }
 
-                    self.stack_top -= self.currentFrame().slots;
-                    self.push(result);                    
+                    self.stack_top = frame.slots;
+                    self.push(result);
                 },
             };
         }
@@ -204,7 +204,6 @@ pub const Vm = struct {
             },
             else => { self.runtimeError("Can only call functions and classes", .{}); return false; },
         }
-
     }
 
     inline fn call(self: *Self, function: *Object.Function, argCount: u8) bool {
@@ -275,11 +274,11 @@ pub const Vm = struct {
         var i = self.framesCount;
         while (i > 0) {
             i -= 1;
-            
+
             const frame = &self.frames[i];
             const function = frame.function;
             const instruction = frame.ip - 1;
-            
+
             err_writer.print("[line {d}] in ", .{function.chunk.lines.items[instruction]}) catch {};
             const name = if (function.name) |name| name.chars else "script";
             err_writer.print("{s}\n", .{name}) catch {};
@@ -340,14 +339,28 @@ pub const Vm = struct {
                         return InterpretError.RuntimeError;
                     },
                     .object => |rhs| {
-                        switch (op) {
-                            .add => {
-                                const heap = std.mem.concat(self.allocator, u8, &[_][]const u8{ lhs.asString().chars, rhs.asString().chars }) catch unreachable;
-                                const obj = Object.String.take(self, heap);
-
-                                self.push(Value.ObjectValue(&obj.object));
+                        switch (lhs.objectType) {
+                            .Function, .NativeFunction => {
+                                self.runtimeError("Operands must be two numbers or two strings", .{});
+                                return InterpretError.RuntimeError;
                             },
-                            else => unreachable,
+                            .String => switch (rhs.objectType) {
+                                .Function, .NativeFunction => {
+                                    self.runtimeError("Operands must be two numbers or two strings", .{});
+                                    return InterpretError.RuntimeError;
+                                },
+                                .String => {
+                                    switch (op) {
+                                        .add => {
+                                            const heap = std.mem.concat(self.allocator, u8, &[_][]const u8{ lhs.asString().chars, rhs.asString().chars }) catch unreachable;
+                                            const obj = Object.String.take(self, heap);
+
+                                            self.push(Value.ObjectValue(&obj.object));
+                                        },
+                                        else => unreachable,
+                                    }
+                                },
+                            },
                         }
                     },
                 }
