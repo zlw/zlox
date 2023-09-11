@@ -59,14 +59,7 @@ pub const Vm = struct {
         const function = compile(self, source) catch return InterpretError.CompileError;
 
         self.push(Value.ObjectValue(&function.object));
-
-        var frame = &self.frames[self.framesCount];
-        self.framesCount += 1;
-
-        frame.function = function;
-        frame.ip = 0;
-        frame.slots = self.stack_top - 1;
-        
+        _ = self.call(function, 0);
         return self.run();
     }
 
@@ -163,6 +156,10 @@ pub const Vm = struct {
                     const offset = self.readTwoBytes();
                     self.currentFrame().ip -= offset;                    
                 },
+                .op_call => {
+                    const argCount = self.readByte();
+                    if (!self.callValue(self.peek(argCount), argCount)) return InterpretError.RuntimeError;
+                },
                 .op_return => return,
             };
         }
@@ -180,6 +177,41 @@ pub const Vm = struct {
     fn peek(self: *Self, back: usize) Value {
         return self.stack[self.stack_top - 1 - back];
     }
+
+    inline fn callValue(self: *Self, callee: Value, argCount: u8) bool {
+        switch (callee) {
+            .object => |object| {
+                switch (object.objectType) {
+                    .Function => return self.call(object.asFunction(), argCount),
+                    else => { self.runtimeError("Can only call functions and classes", .{}); return false; },
+                }
+            },
+            else => { self.runtimeError("Can only call functions and classes", .{}); return false; },
+        }
+
+    }
+
+    inline fn call(self: *Self, function: *Object.Function, argCount: u8) bool {
+        if (function.arity != argCount) {
+            self.runtimeError("Expected {d} arguments but got {d}", .{function.arity, argCount});
+            return false;
+        }
+
+        if (self.framesCount == frames_max) {
+            self.runtimeError("Stack overflow", .{});
+            return false;
+        }
+
+        var frame = &self.frames[self.framesCount];
+        self.framesCount += 1;
+
+        frame.function = function;
+        frame.ip = 0;
+        frame.slots = self.stack_top - argCount - 1;
+
+        return true;
+    }
+
     inline fn pop(self: *Self) Value {
         self.stack_top -= 1;
         return self.stack[self.stack_top];
@@ -213,8 +245,20 @@ pub const Vm = struct {
 
         const err_writer = std.io.getStdErr().writer();
 
-        err_writer.print("[line {d}] Error in script: ", .{self.currentChunk().lines.items[self.currentFrame().ip]}) catch {};
         err_writer.print(message ++ ".\n", args) catch {};
+
+        var i = self.framesCount;
+        while (i > 0) {
+            i -= 1;
+            
+            const frame = &self.frames[i];
+            const function = frame.function;
+            const instruction = frame.ip - 1;
+            
+            err_writer.print("[line {d}] in ", .{function.chunk.lines.items[instruction]}) catch {};
+            const name = if (function.name) |name| name.chars else "script";
+            err_writer.print("{s}\n", .{name}) catch {};
+        }
 
         self.resetStack();
     }

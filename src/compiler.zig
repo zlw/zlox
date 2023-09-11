@@ -69,7 +69,7 @@ fn getRule(token_type: TokenType) ParseRule {
     }
 
     const rule = switch (token_type) {
-        .LeftParen => ParseRule.init(Parser.grouping, null, Precedence.None),
+        .LeftParen => ParseRule.init(Parser.grouping, Parser.call, Precedence.Call),
         .RightParen => ParseRule.init(null, null, Precedence.None),
         .LeftBrace => ParseRule.init(null, null, Precedence.None),
         .RightBrace => ParseRule.init(null, null, Precedence.None),
@@ -135,10 +135,13 @@ const Compiler = struct {
     fn init(vm: *Vm, functionType: FunctionType) Self {
         var compiler = Self{ .function = Object.Function.create(vm), .functionType = functionType };
 
-        var local = compiler.locals[compiler.localCount];
-        compiler.localCount += 1;
-        local.depth = 0;
-        local.name.lexeme = "";
+        if (functionType == FunctionType.Script) {
+            var local = &compiler.locals[compiler.localCount];
+            compiler.localCount += 1;
+            local.depth = 0;
+            local.name.lexeme = "";
+        }
+
 
         return compiler;
     }
@@ -239,6 +242,7 @@ const Parser = struct {
         var functionCompiler = Compiler.init(self.vm, functionType);
         functionCompiler.enclosing = self.compiler;
         self.compiler = &functionCompiler;
+
         // book does this in initCompiler which is our Compiler.init,
         // but I don't see a reason why if we're setting function.arity here, we can as well set it's name
         // that way we don't need to make Compiler depend on the Parser which would create bi-directional dependency
@@ -252,7 +256,8 @@ const Parser = struct {
                 self.compiler.function.arity += 1;
 
                 if (self.compiler.function.arity > 255) {
-                    self.errAtCurrent("Can't have more than 255 parameters");
+                    self.errAtCurrent("Can't have more than 255 parameters");                    
+                    return;
                 }
 
                 const parameter = self.parseVariable("Expect parameter name");
@@ -514,6 +519,12 @@ const Parser = struct {
         }
     }
 
+    fn call(self: *Self, canAssign: bool) void {
+        _ = canAssign;
+        const argCount = self.argumentList();
+        self.emitOpAndByte(OpCode.op_call, argCount);
+    }
+
     fn literal(self: *Self, canAssign: bool) void {
         _ = canAssign;
         switch (self.previous.token_type) {
@@ -595,6 +606,28 @@ const Parser = struct {
         }
 
         self.emitOpAndByte(OpCode.op_define_global, global);
+    }
+
+    fn argumentList(self: *Self) u8 {
+        var argCount: u8 = 0;
+
+        if (!self.check(TokenType.RightParen)) {
+            while (true) {
+                self.expression();
+
+                if (argCount == 255) {
+                    self.err("Can't have more than 255 arguments");
+                    break;
+                }
+                argCount += 1;
+
+                if (!self.match(TokenType.Comma)) break;
+            }
+        }
+
+        self.consume(TokenType.RightParen, "Expect ')' after arguments.");
+
+        return argCount;
     }
 
     fn markInitialized(self: *Self) void {
