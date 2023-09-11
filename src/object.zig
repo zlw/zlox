@@ -5,7 +5,7 @@ const Vm = @import("./vm.zig").Vm;
 
 const Allocator = std.mem.Allocator;
 
-pub const ObjectType = enum { String, Function };
+pub const ObjectType = enum { String, Function, NativeFunction };
 
 pub const Object = struct {
     objectType: ObjectType,
@@ -22,6 +22,7 @@ pub const Object = struct {
         switch (self.objectType) {
             .String => self.asString().destroy(vm),
             .Function => self.asFunction().destroy(vm),
+            .NativeFunction => self.asNativeFunction().destroy(vm),
         }
     }
 
@@ -31,6 +32,10 @@ pub const Object = struct {
 
     pub inline fn asFunction(self: *Object) *Function {
         return @fieldParentPtr(Function, "object", self);
+    }
+
+    pub inline fn asNativeFunction(self: *Object) *NativeFunction {
+        return @fieldParentPtr(NativeFunction, "object", self);
     }
 
     pub inline fn isA(value: Value, objectType: ObjectType) bool {
@@ -105,6 +110,25 @@ pub const Object = struct {
 
         fn destroy(self: *Function, vm: *Vm) void {
             self.chunk.deinit();
+            vm.allocator.destroy(self);
+        }
+    };
+
+    pub const NativeFunction = struct {
+        object: Object,
+        function: Fn,
+
+        pub const Fn = *const fn (args: Value) Value;
+
+        pub fn create(vm: *Vm, function: Fn) *NativeFunction {
+            const native = Object.create(vm, NativeFunction, .NativeFunction);
+
+            native.function = function;
+
+            return native;
+        }
+
+        pub fn destroy(self: *NativeFunction, vm: *Vm) void {        
             vm.allocator.destroy(self);
         }
     };

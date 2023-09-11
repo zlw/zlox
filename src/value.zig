@@ -53,7 +53,7 @@ pub fn printValue(boxed: Value) void {
                 const name = if (value.asFunction().name) |name| name.chars else "script";
                 stdout.print("<fn {s}>\n", .{name}) catch @panic(msg);
             },
-
+            .NativeFunction => stdout.print("<native fn>\n", .{}) catch {},
         },
     }
 }

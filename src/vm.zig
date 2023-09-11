@@ -12,6 +12,8 @@ const Table = @import("./table.zig").Table;
 
 const compile = @import("./compiler.zig").compile;
 
+const native = @import("./native.zig");
+
 const debug_trace_execution = debug.debug_trace_execution;
 const debug_stack_execution = debug.debug_stack_execution;
 const debug_garbage_collection = debug.debug_garbage_collection;
@@ -46,7 +48,9 @@ pub const Vm = struct {
     allocator: Allocator,
 
     pub fn init(allocator: Allocator) Self {
-        return Self{ .allocator = allocator, .strings = Table.init(allocator), .globals = Table.init(allocator) };
+        var vm = Self{ .allocator = allocator, .strings = Table.init(allocator), .globals = Table.init(allocator) };
+        vm.defineNative("clock", native.clockNative);
+        return vm;
     }
 
     pub fn deinit(self: *Self) void {
@@ -169,8 +173,6 @@ pub const Vm = struct {
                         return;
                     }
 
-                    std.debug.print("stack_top: {}\nslots: {}\n", .{self.stack_top, self.currentFrame().slots});
-
                     self.stack_top -= self.currentFrame().slots;
                     self.push(result);                    
                 },
@@ -196,6 +198,7 @@ pub const Vm = struct {
             .object => |object| {
                 switch (object.objectType) {
                     .Function => return self.call(object.asFunction(), argCount),
+                    .NativeFunction => return self.callNative(object.asNativeFunction(), argCount),
                     else => { self.runtimeError("Can only call functions and classes", .{}); return false; },
                 }
             },
@@ -221,6 +224,15 @@ pub const Vm = struct {
         frame.function = function;
         frame.ip = 0;
         frame.slots = self.stack_top - argCount - 1;
+
+        return true;
+    }
+
+    inline fn callNative(self: *Self, function: *Object.NativeFunction, argCount: u8) bool {
+        const args = self.stack[self.stack_top - argCount - 1];
+        const result = function.function(args);
+        self.stack_top -= argCount + 1;
+        self.push(result);
 
         return true;
     }
@@ -274,6 +286,16 @@ pub const Vm = struct {
         }
 
         self.resetStack();
+    }
+
+    fn defineNative(self: *Self, name: []const u8, function: Object.NativeFunction.Fn) void {
+        self.push(Value.ObjectValue(&Object.String.copy(self, name).object));
+        self.push(Value.ObjectValue(&Object.NativeFunction.create(self, function).object));
+
+        _ = self.globals.set(self.stack[0].object.asString(), self.stack[1]);
+
+        _ = self.pop();
+        _ = self.pop();
     }
 
     inline fn binaryOp(self: *Self, op: BinaryOp) InterpretError!void {
