@@ -30,7 +30,7 @@ const BinaryOp = enum { add, sub, mul, div };
 const CompOp = enum { gt, lt };
 
 const CallFrame = struct {
-    function: *Object.Function,
+    closure: *Object.Closure,
     ip: usize = 0,
     slots: usize = 0,
 };
@@ -63,12 +63,16 @@ pub const Vm = struct {
         const function = compile(self, source) catch return InterpretError.CompileError;
 
         self.push(Value.ObjectValue(&function.object));
-        _ = self.call(function, 0);
+        const closure = Object.Closure.create(self, function);
+        _ = self.pop();
+        self.push(Value.ObjectValue(&closure.object));
+        _ = self.call(closure, 0);
+        
         return self.run();
     }
 
     fn currentChunk(self: *Self) *Chunk {
-        return &self.currentFrame().function.chunk;
+        return &self.currentFrame().closure.function.chunk;
     }
 
     fn currentFrame(self: *Self) *CallFrame {
@@ -163,6 +167,12 @@ pub const Vm = struct {
                     const argCount = self.readByte();
                     if (!self.callValue(self.peek(argCount), argCount)) return InterpretError.RuntimeError;
                 },
+                .op_closure => {
+                    const function: *Object.Function = self.readConstant().object.asFunction();
+                    const closure: *Object.Closure = Object.Closure.create(self, function);
+                    
+                    self.push(Value.ObjectValue(&closure.object));                    
+                },
                 .op_return => {
                     const result = self.pop();
                     const frame = self.currentFrame();
@@ -197,8 +207,9 @@ pub const Vm = struct {
         switch (callee) {
             .object => |object| {
                 switch (object.objectType) {
-                    .Function => return self.call(object.asFunction(), argCount),
+                    //.Function => return self.call(object.asFunction(), argCount),
                     .NativeFunction => return self.callNative(object.asNativeFunction(), argCount),
+                    .Closure => return self.call(object.asClosure(), argCount),
                     else => { self.runtimeError("Can only call functions and classes", .{}); return false; },
                 }
             },
@@ -206,7 +217,9 @@ pub const Vm = struct {
         }
     }
 
-    inline fn call(self: *Self, function: *Object.Function, argCount: u8) bool {
+    inline fn call(self: *Self, closure: *Object.Closure, argCount: u8) bool {
+        const function = closure.function;
+
         if (function.arity != argCount) {
             self.runtimeError("Expected {d} arguments but got {d}", .{function.arity, argCount});
             return false;
@@ -220,7 +233,7 @@ pub const Vm = struct {
         var frame = &self.frames[self.framesCount];
         self.framesCount += 1;
 
-        frame.function = function;
+        frame.closure = closure;
         frame.ip = 0;
         frame.slots = self.stack_top - argCount - 1;
 
@@ -276,7 +289,7 @@ pub const Vm = struct {
             i -= 1;
 
             const frame = &self.frames[i];
-            const function = frame.function;
+            const function = frame.closure.function;
             const instruction = frame.ip - 1;
 
             err_writer.print("[line {d}] in ", .{function.chunk.lines.items[instruction]}) catch {};
@@ -340,12 +353,12 @@ pub const Vm = struct {
                     },
                     .object => |rhs| {
                         switch (lhs.objectType) {
-                            .Function, .NativeFunction => {
+                            .Function, .NativeFunction, .Closure => {
                                 self.runtimeError("Operands must be two numbers or two strings", .{});
                                 return InterpretError.RuntimeError;
                             },
                             .String => switch (rhs.objectType) {
-                                .Function, .NativeFunction => {
+                                .Function, .NativeFunction, .Closure => {
                                     self.runtimeError("Operands must be two numbers or two strings", .{});
                                     return InterpretError.RuntimeError;
                                 },

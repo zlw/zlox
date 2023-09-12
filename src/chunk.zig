@@ -31,6 +31,7 @@ pub const OpCode = enum(u8) {
     op_jump_if_false,
     op_loop,
     op_call,
+    op_closure,
     op_return,
 
     pub fn toU8(self: Self) u8 {

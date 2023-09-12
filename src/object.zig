@@ -5,7 +5,7 @@ const Vm = @import("./vm.zig").Vm;
 
 const Allocator = std.mem.Allocator;
 
-pub const ObjectType = enum { String, Function, NativeFunction };
+pub const ObjectType = enum { String, Function, NativeFunction, Closure };
 
 pub const Object = struct {
     objectType: ObjectType,
@@ -23,6 +23,7 @@ pub const Object = struct {
             .String => self.asString().destroy(vm),
             .Function => self.asFunction().destroy(vm),
             .NativeFunction => self.asNativeFunction().destroy(vm),
+            .Closure => self.asClosure().destroy(vm),
         }
     }
 
@@ -36,6 +37,10 @@ pub const Object = struct {
 
     pub inline fn asNativeFunction(self: *Object) *NativeFunction {
         return @fieldParentPtr(NativeFunction, "object", self);
+    }
+
+    pub inline fn asClosure(self: *Object) *Closure {
+        return @fieldParentPtr(Closure, "object", self);
     }
 
     pub inline fn isA(value: Value, objectType: ObjectType) bool {
@@ -132,6 +137,24 @@ pub const Object = struct {
             vm.allocator.destroy(self);
         }
     };
+
+    pub const Closure = struct {
+        object: Object,
+        function: *Object.Function,
+
+        pub fn create(vm: *Vm, function: *Object.Function) *Closure {
+            const closure = Object.create(vm, Closure, .Closure);
+            closure.function = function;
+
+            return closure;
+        }
+
+        pub fn destroy(self: *Closure, vm: *Vm) void {
+            vm.allocator.destroy(self);
+        }
+    };
+
+    
 };
 
 fn hashBytes(bytes: []const u8) u32 {

@@ -3,6 +3,7 @@ const std = @import("std");
 const Chunk  = @import("./chunk.zig").Chunk;
 const OpCode = @import("./chunk.zig").OpCode;
 const Value  = @import("./value.zig").Value;
+const printValue = @import("./value.zig").printValue;
 
 pub const debug_trace_execution = false;
 pub const debug_stack_execution = false;
@@ -60,6 +61,15 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) usize {
         .op_jump_if_false => jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset),
         .op_loop => jumpInstruction("OP_LOOP", -1, chunk, offset),
         .op_call => byteInstruction("OP_CALL", chunk, offset),
+        .op_closure => {
+            offset += 1;
+            const constant = chunk.code.items[offset];
+            offset += 1;
+            std.debug.print("{s} {d}", .{"OP_CLOSURE", constant});
+            printValue(chunk.constants.items[constant]);
+            
+            
+        },
         .op_return   => simpleInstruction("OP_RETURN", offset),
     };
 }

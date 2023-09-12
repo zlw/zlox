@@ -271,7 +271,7 @@ const Parser = struct {
 
         const function = self.endCompiler();
 
-        self.emitOpAndByte(OpCode.op_constant, self.makeConstant(Value.ObjectValue(&function.object)));
+        self.emitOpAndByte(OpCode.op_closure, self.makeConstant(Value.ObjectValue(&function.object)));
     }
 
     fn varDeclaration(self: *Self) void {
@@ -586,7 +586,7 @@ const Parser = struct {
                 self.err("Expect expression");
                 return;
             };
-            
+
             infixRule(self, canAssign);
         }
 
