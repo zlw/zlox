@@ -269,6 +269,8 @@ const Parser = struct {
 
         self.block();
 
+        self.endScope();
+        
         const function = self.endCompiler();
 
         self.emitOpAndByte(OpCode.op_closure, self.makeConstant(Value.ObjectValue(&function.object)));
