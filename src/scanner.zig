@@ -78,7 +78,7 @@ pub const Scanner = struct {
         if (isDigit(c)) return self.handleNumber();
 
         return switch (c) {
-            '(' => self.makeToken(.LeftParen),
+            '(' => self.makeToken(TokenType.LeftParen),
             ')' => self.makeToken(TokenType.RightParen),
             '{' => self.makeToken(TokenType.LeftBrace),
             '}' => self.makeToken(TokenType.RightBrace),
