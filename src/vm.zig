@@ -45,6 +45,7 @@ pub const Vm = struct {
     strings: Table,
     globals: Table,
     objects: ?*Object = null,
+    openUpvalues: ?*Object.Upvalue = null,
     allocator: Allocator,
 
     pub fn init(allocator: Allocator) Self {
@@ -61,13 +62,11 @@ pub const Vm = struct {
 
     pub fn interpret(self: *Self, source: []const u8) InterpretError!void {
         const function = compile(self, source) catch return InterpretError.CompileError;
-
         self.push(Value.ObjectValue(&function.object));
         const closure = Object.Closure.create(self, function);
         _ = self.pop();
         self.push(Value.ObjectValue(&closure.object));
         _ = self.call(closure, 0);
-
         try self.run();
     }
 
@@ -151,6 +150,18 @@ pub const Vm = struct {
                     const slot = self.readByte();
                     self.stack[self.currentFrame().slots + slot] = self.peek(0);
                 },
+                .op_get_upvalue => {
+                    const slot = self.readByte();
+                    self.push(self.currentFrame().closure.upvalues[slot].location.*);
+                },
+                .op_set_upvalue => {
+                    const slot = self.readByte();
+                    self.currentFrame().closure.upvalues[slot].location.* = self.peek(0);
+                },
+                .op_close_upvalue => {
+                    self.closeUpvalue(&self.stack[self.stack_top - 1]);
+                    _ = self.pop();
+                },
                 .op_jump => {
                     const offset = self.readTwoBytes();
                     self.currentFrame().ip += offset;
@@ -168,19 +179,29 @@ pub const Vm = struct {
                     if (!self.callValue(self.peek(argCount), argCount)) return InterpretError.RuntimeError;
                 },
                 .op_closure => {
-                    const function: *Object.Function = self.readConstant().object.asFunction();
-                    const closure: *Object.Closure = Object.Closure.create(self, function);
+                    const function = self.readConstant().object.asFunction();
+                    const closure = Object.Closure.create(self, function);
 
                     self.push(Value.ObjectValue(&closure.object));
+                    var i: usize = 0;
+                    while (i < closure.upvalueCount) : (i += 1) {
+                        const isLocal = self.readByte() == 1;
+                        const index = self.readByte();
+
+                        if (isLocal) {
+                            closure.upvalues[i] = self.captureUpvalue(&self.stack[self.currentFrame().slots + index]);
+                        } else {
+                            closure.upvalues[i] = self.currentFrame().closure.upvalues[index];
+                        }
+                    }
                 },
                 .op_return => {
                     const result = self.pop();
                     const frame = self.currentFrame();
+                    self.closeUpvalue(&self.stack[frame.slots]);
                     self.framesCount -= 1;
 
-                    if (self.framesCount == 0) {
-                        return;
-                    }
+                    if (self.framesCount == 0) return;
 
                     self.stack_top = frame.slots;
                     self.push(result);
@@ -192,6 +213,7 @@ pub const Vm = struct {
     fn resetStack(self: *Self) void {
         self.stack_top = 0;
         self.framesCount = 0;
+        self.openUpvalues = null;
     }
 
     inline fn push(self: *Self, value: Value) void {
@@ -210,10 +232,16 @@ pub const Vm = struct {
                     //.Function => return self.call(object.asFunction(), argCount),
                     .NativeFunction => return self.callNative(object.asNativeFunction(), argCount),
                     .Closure => return self.call(object.asClosure(), argCount),
-                    else => { self.runtimeError("Can only call functions and classes", .{}); return false; },
+                    else => {
+                        self.runtimeError("Can only call functions and classes", .{});
+                        return false;
+                    },
                 }
             },
-            else => { self.runtimeError("Can only call functions and classes", .{}); return false; },
+            else => {
+                self.runtimeError("Can only call functions and classes", .{});
+                return false;
+            },
         }
     }
 
@@ -221,7 +249,7 @@ pub const Vm = struct {
         const function = closure.function;
 
         if (function.arity != argCount) {
-            self.runtimeError("Expected {d} arguments but got {d}", .{function.arity, argCount});
+            self.runtimeError("Expected {d} arguments but got {d}", .{ function.arity, argCount });
             return false;
         }
 
@@ -247,6 +275,42 @@ pub const Vm = struct {
         self.push(result);
 
         return true;
+    }
+
+    inline fn captureUpvalue(self: *Self, local: *Value) *Object.Upvalue {
+        var prevUpvalue: ?*Object.Upvalue = null;
+        var maybeUpvalue = self.openUpvalues;
+
+        while (maybeUpvalue) |upvalue| {
+            if (@intFromPtr(upvalue.location) <= @intFromPtr(local)) break;
+            prevUpvalue = upvalue;
+            maybeUpvalue = upvalue.next;
+        }
+
+        if (maybeUpvalue) |upvalue| {
+            if (upvalue.location == local) return upvalue;
+        }
+
+        const createdUpvalue = Object.Upvalue.create(self, local);
+        createdUpvalue.next = maybeUpvalue;
+
+        if (prevUpvalue == null) {
+            self.openUpvalues = createdUpvalue;
+        } else {
+            prevUpvalue.?.next = createdUpvalue;
+        }
+
+        return createdUpvalue;
+    }
+
+    fn closeUpvalue(self: *Self, last: *Value) void {
+        while (self.openUpvalues) |openUpvalues| {
+            if (@intFromPtr(openUpvalues.location) < @intFromPtr(last)) break;
+            const upvalue = openUpvalues;
+            upvalue.closed = upvalue.location.*;
+            upvalue.location = &upvalue.closed;
+            self.openUpvalues = upvalue.next;
+        }
     }
 
     inline fn pop(self: *Self) Value {
@@ -352,12 +416,12 @@ pub const Vm = struct {
                     },
                     .object => |rhs| {
                         switch (lhs.objectType) {
-                            .Function, .NativeFunction, .Closure => {
+                            .Function, .NativeFunction, .Closure, .Upvalue => {
                                 self.runtimeError("Operands must be two numbers or two strings", .{});
                                 return InterpretError.RuntimeError;
                             },
                             .String => switch (rhs.objectType) {
-                                .Function, .NativeFunction, .Closure => {
+                                .Function, .NativeFunction, .Closure, .Upvalue => {
                                     self.runtimeError("Operands must be two numbers or two strings", .{});
                                     return InterpretError.RuntimeError;
                                 },

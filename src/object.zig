@@ -5,7 +5,7 @@ const Vm = @import("./vm.zig").Vm;
 
 const Allocator = std.mem.Allocator;
 
-pub const ObjectType = enum { String, Function, NativeFunction, Closure };
+pub const ObjectType = enum { String, Function, NativeFunction, Closure, Upvalue };
 
 pub const Object = struct {
     objectType: ObjectType,
@@ -24,6 +24,7 @@ pub const Object = struct {
             .Function => self.asFunction().destroy(vm),
             .NativeFunction => self.asNativeFunction().destroy(vm),
             .Closure => self.asClosure().destroy(vm),
+            .Upvalue => self.asUpvalue().destroy(vm),
         }
     }
 
@@ -41,6 +42,10 @@ pub const Object = struct {
 
     pub inline fn asClosure(self: *Object) *Closure {
         return @fieldParentPtr(Closure, "object", self);
+    }
+
+    pub inline fn asUpvalue(self: *Object) *Upvalue {
+        return @fieldParentPtr(Upvalue, "object", self);
     }
 
     pub inline fn isA(value: Value, objectType: ObjectType) bool {
@@ -62,9 +67,9 @@ pub const Object = struct {
             const heap = vm.allocator.alloc(u8, chars.len) catch {
                 @panic("Error copying String\n");
             };
-            
+
             std.mem.copy(u8, heap, chars);
-            
+
             return allocate(vm, heap, hash);
         }
 
@@ -82,12 +87,12 @@ pub const Object = struct {
 
         fn allocate(vm: *Vm, bytes: []const u8, hash: u32) *String {
             const str = Object.create(vm, String, .String);
-            
+
             str.chars = bytes;
             str.hash = hash;
 
             _ = vm.strings.set(str, Value.NilValue());
-            
+
             return str;
         }
 
@@ -100,6 +105,7 @@ pub const Object = struct {
     pub const Function = struct {
         object: Object,
         arity: usize,
+        upvalueCount: u8,
         chunk: Chunk,
         name: ?*String,
 
@@ -107,6 +113,7 @@ pub const Object = struct {
             const function = Object.create(vm, Function, .Function);
 
             function.arity = 0;
+            function.upvalueCount = 0;
             function.name = null;
             function.chunk = Chunk.init(vm.allocator);
 
@@ -133,7 +140,7 @@ pub const Object = struct {
             return native;
         }
 
-        pub fn destroy(self: *NativeFunction, vm: *Vm) void {        
+        pub fn destroy(self: *NativeFunction, vm: *Vm) void {
             vm.allocator.destroy(self);
         }
     };
@@ -141,20 +148,43 @@ pub const Object = struct {
     pub const Closure = struct {
         object: Object,
         function: *Object.Function,
+        upvalues: []*Upvalue,
+        upvalueCount: u8,
 
         pub fn create(vm: *Vm, function: *Object.Function) *Closure {
             const closure = Object.create(vm, Closure, .Closure);
+
             closure.function = function;
+            closure.upvalues = vm.allocator.alloc(*Upvalue, function.upvalueCount) catch @panic("Error creating Closure Upvalues");
+            closure.upvalueCount = function.upvalueCount;
 
             return closure;
         }
 
         pub fn destroy(self: *Closure, vm: *Vm) void {
+            vm.allocator.free(self.upvalues);
             vm.allocator.destroy(self);
         }
     };
 
-    
+    pub const Upvalue = struct {
+        object: Object,
+        location: *Value,
+        closed: Value = Value.nil,
+        next: ?*Upvalue = null,
+
+        pub fn create(vm: *Vm, location: *Value) *Upvalue {
+            const upvalue = Object.create(vm, Upvalue, .Upvalue);
+
+            upvalue.location = location;
+
+            return upvalue;
+        }
+
+        pub fn destroy(self: *Upvalue, vm: *Vm) void {
+            vm.allocator.destroy(self);
+        }
+    };
 };
 
 fn hashBytes(bytes: []const u8) u32 {

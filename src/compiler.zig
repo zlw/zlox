@@ -14,6 +14,7 @@ const debug = @import("./debug.zig");
 const debug_rule_selection = debug.debug_rule_selection;
 const debug_print_code = debug.debug_print_code;
 const locals_max = std.math.maxInt(u8) + 1;
+const upvalues_max = std.math.maxInt(u8) + 1;
 
 const CompileError = error{ CompileError, TooManyConstants };
 
@@ -130,6 +131,7 @@ const Compiler = struct {
 
     locals: [locals_max]Local = undefined,
     localCount: u16 = 0,
+    upvalues: [upvalues_max]Upvalue = undefined,
     scopeDepth: u32 = 0,
 
     fn init(vm: *Vm, functionType: FunctionType, enclosing: ?*Compiler) Self {
@@ -140,7 +142,6 @@ const Compiler = struct {
         local.depth = 0;
         local.name.lexeme = "";
 
-
         return compiler;
     }
 };
@@ -148,6 +149,12 @@ const Compiler = struct {
 const Local = struct {
     name: Token,
     depth: ?u32 = null,
+    isCaptured: bool = false,
+};
+
+const Upvalue = struct {
+    index: u8,
+    isLocal: bool,
 };
 
 const Parser = struct {
@@ -270,6 +277,14 @@ const Parser = struct {
         const function = self.endCompiler();
 
         self.emitOpAndByte(OpCode.op_closure, self.makeConstant(Value.ObjectValue(&function.object)));
+
+        var i: usize = 0;
+        while (i < function.upvalueCount) : (i += 1) {
+            const upvalue = &functionCompiler.upvalues[i];
+
+            self.emitByte(if (upvalue.isLocal) 1 else 0);
+            self.emitByte(upvalue.index);
+        }
     }
 
     fn varDeclaration(self: *Self) void {
@@ -422,7 +437,11 @@ const Parser = struct {
         self.compiler.scopeDepth -= 1;
 
         while (self.compiler.localCount > 0 and self.compiler.locals[self.compiler.localCount - 1].depth.? > self.compiler.scopeDepth) : (self.compiler.localCount -= 1) {
-            self.emitOp(OpCode.op_pop);
+            if (self.compiler.locals[self.compiler.localCount - 1].isCaptured) {
+                self.emitOp(OpCode.op_close_upvalue);
+            } else {
+                self.emitOp(OpCode.op_pop);
+            }
         }
     }
 
@@ -460,6 +479,11 @@ const Parser = struct {
 
             getOp = OpCode.op_get_local;
             setOp = OpCode.op_set_local;
+        } else if (self.resolveUpvalue(self.compiler, name)) |upvalue| {
+            arg = upvalue;
+
+            getOp = OpCode.op_get_upvalue;
+            setOp = OpCode.op_set_upvalue;
         } else {
             arg = self.identifierConstant(name);
 
@@ -490,6 +514,47 @@ const Parser = struct {
         }
 
         return null;
+    }
+
+    fn resolveUpvalue(self: *Self, compiler: *Compiler, name: *Token) ?u8 {
+        if (compiler.enclosing == null) return null;
+
+        const local = self.resolveLocal(compiler.enclosing.?, name);
+        if (local) |val| {
+            compiler.enclosing.?.locals[val].isCaptured = true;
+            return self.addUpvalue(compiler, val, true);
+        }
+
+        const upvalue = self.resolveUpvalue(compiler.enclosing.?, name);
+        if (upvalue) |val| {
+            return self.addUpvalue(compiler, val, false);
+        }
+
+        return null;
+    }
+
+    fn addUpvalue(self: *Self, compiler: *Compiler, index: u8, isLocal: bool) ?u8 {
+        const upvalueCount = compiler.function.upvalueCount;
+
+        var i: usize = 0;
+        while (i < upvalueCount) : (i += 1) {
+            const upvalue = &compiler.upvalues[i];
+
+            if (upvalue.index == index and upvalue.isLocal == isLocal) {
+                return @as(u8, @intCast(i));
+            }
+        }
+
+        if (upvalueCount >= upvalues_max) {
+            self.err("Too many closure variables in function");
+            return null;
+        }
+
+        compiler.upvalues[upvalueCount].isLocal = isLocal;
+        compiler.upvalues[upvalueCount].index = index;
+
+        compiler.function.upvalueCount += 1;
+        return upvalueCount;
     }
 
     fn grouping(self: *Self, canAssign: bool) void {
@@ -642,8 +707,7 @@ const Parser = struct {
     fn markInitialized(self: *Self) void {
         if (self.compiler.scopeDepth == 0) return;
 
-        const local = &self.compiler.locals[self.compiler.localCount - 1];
-        local.depth = self.compiler.scopeDepth;
+        self.compiler.locals[self.compiler.localCount - 1].depth = self.compiler.scopeDepth;
     }
 
     fn declareVariable(self: *Self) void {
@@ -794,6 +858,5 @@ const Parser = struct {
     fn emitReturn(self: *Self) void {
         self.emitOp(OpCode.op_nil);
         self.emitOp(OpCode.op_return);
-
     }
 };
