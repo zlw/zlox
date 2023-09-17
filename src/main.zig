@@ -8,6 +8,7 @@ const OpCode = @import("./chunk.zig").OpCode;
 const Vm = @import("./vm.zig").Vm;
 const InterpretError = @import("./vm.zig").InterpretError;
 
+const GCAllocator = @import("./memory.zig").GCAllocator;
 const debug_garbage_collection = @import("./debug.zig").debug_garbage_collection;
 
 const errout = std.io.getStdErr().writer();
@@ -21,7 +22,7 @@ pub fn main() anyerror!u8 {
     defer {
         if (comptime debug_garbage_collection) {
             const has_leaked = gpa.detectLeaks();
-            std.log.debug("Has leaked: {}\n", .{has_leaked});
+            std.log.debug("Leaked: {}", .{has_leaked});
         }
     }
 
@@ -30,7 +31,8 @@ pub fn main() anyerror!u8 {
     const args = try process.argsAlloc(allocator);
     defer process.argsFree(allocator, args);
 
-    var vm = Vm.init(allocator);
+    var gc = GCAllocator.init(allocator);
+    var vm = Vm.init(gc.allocator());
     defer vm.deinit();
 
     switch (args.len) {
