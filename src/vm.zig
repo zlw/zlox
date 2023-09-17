@@ -67,8 +67,8 @@ pub const Vm = struct {
         _ = self.pop();
         self.push(Value.ObjectValue(&closure.object));
         _ = self.call(closure, 0);
-        
-        return self.run();
+
+        try self.run();
     }
 
     fn currentChunk(self: *Self) *Chunk {
@@ -144,11 +144,11 @@ pub const Vm = struct {
                     }
                 },
                 .op_get_local => {
-                    const slot = self.readInstruction().toU8();
+                    const slot = self.readByte();
                     self.push(self.stack[self.currentFrame().slots + slot]);
                 },
                 .op_set_local => {
-                    const slot = self.readInstruction().toU8();
+                    const slot = self.readByte();
                     self.stack[self.currentFrame().slots + slot] = self.peek(0);
                 },
                 .op_jump => {
@@ -170,8 +170,8 @@ pub const Vm = struct {
                 .op_closure => {
                     const function: *Object.Function = self.readConstant().object.asFunction();
                     const closure: *Object.Closure = Object.Closure.create(self, function);
-                    
-                    self.push(Value.ObjectValue(&closure.object));                    
+
+                    self.push(Value.ObjectValue(&closure.object));
                 },
                 .op_return => {
                     const result = self.pop();
@@ -179,7 +179,6 @@ pub const Vm = struct {
                     self.framesCount -= 1;
 
                     if (self.framesCount == 0) {
-                        _ = self.pop();
                         return;
                     }
 
@@ -192,6 +191,7 @@ pub const Vm = struct {
 
     fn resetStack(self: *Self) void {
         self.stack_top = 0;
+        self.framesCount = 0;
     }
 
     inline fn push(self: *Self, value: Value) void {
@@ -230,7 +230,7 @@ pub const Vm = struct {
             return false;
         }
 
-        var frame = &self.frames[self.framesCount];
+        const frame = &self.frames[self.framesCount];
         self.framesCount += 1;
 
         frame.closure = closure;
@@ -272,8 +272,7 @@ pub const Vm = struct {
     }
 
     inline fn readConstant(self: *Self) Value {
-        const constant = self.currentChunk().constants.items[self.currentChunk().code.items[self.currentFrame().ip]];
-        self.currentFrame().ip += 1;
+        const constant = self.currentChunk().constants.items[self.readByte()];
         return constant;
     }
 

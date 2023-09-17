@@ -11,7 +11,7 @@ pub const debug_rule_selection = false;
 pub const debug_garbage_collection = false;
 pub const debug_print_code = false;
 
-pub fn disassembleChunk(chunk: *Chunk, comptime name: []const u8) void {
+pub fn disassembleChunk(chunk: *Chunk, name: []const u8) void {
     std.debug.print("=== {s} ===\n", .{name});
 
     const code = chunk.code;
@@ -61,15 +61,7 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) usize {
         .op_jump_if_false => jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset),
         .op_loop => jumpInstruction("OP_LOOP", -1, chunk, offset),
         .op_call => byteInstruction("OP_CALL", chunk, offset),
-        .op_closure => {
-            offset += 1;
-            const constant = chunk.code.items[offset];
-            offset += 1;
-            std.debug.print("{s} {d}", .{"OP_CLOSURE", constant});
-            printValue(chunk.constants.items[constant]);
-            
-            
-        },
+        .op_closure => closureInstruction("OP_CLOSURE", chunk, offset),
         .op_return   => simpleInstruction("OP_RETURN", offset),
     };
 }
@@ -100,6 +92,29 @@ fn jumpInstruction(name: []const u8, sign: isize, chunk: *Chunk, offset: usize) 
     const target = @as(isize, @intCast(offset)) + 3 + sign * @as(isize, @intCast(jump));
     std.debug.print("{s} {d} -> {d}\n", .{name, offset, target});
     return offset + 3;
+}
+
+fn closureInstruction(name: []const u8, chunk: *Chunk, initialOffset: usize) usize {
+    var offset = initialOffset + 1;
+    const constant = chunk.code.items[offset];
+    offset += 1;
+    std.debug.print("{s} {} ", .{ name, constant });
+    printValue(chunk.constants.items[constant]);
+    std.debug.print("\n", .{});
+
+    // Disassemble upvalues
+    const function = chunk.constants.items[constant].object.asFunction();
+    var i: usize = 0;
+    while (i < function.upvalueCount) : (i += 1) {
+        const isLocal = chunk.code.items[offset] != 1;
+        const valueType = if (isLocal) "local" else "upvalue";
+        offset += 1;
+        const index = chunk.code.items[offset];
+        offset += 1;
+        std.debug.print("{} | {s} {}\n", .{ offset - 2, valueType, index});
+    }
+
+    return offset;
 }
 
 pub fn printStack(stack: []Value) void {

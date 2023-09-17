@@ -19,7 +19,7 @@ const CompileError = error{ CompileError, TooManyConstants };
 
 pub fn compile(vm: *Vm, source: []const u8) CompileError!*Object.Function {
     var scanner = Scanner.init(source);
-    var compiler = Compiler.init(vm, FunctionType.Script);
+    var compiler = Compiler.init(vm, FunctionType.Script, null);
     var parser = Parser.init(vm, &scanner, &compiler);
 
     parser.advance();
@@ -132,8 +132,8 @@ const Compiler = struct {
     localCount: u16 = 0,
     scopeDepth: u32 = 0,
 
-    fn init(vm: *Vm, functionType: FunctionType) Self {
-        var compiler = Self{ .function = Object.Function.create(vm), .functionType = functionType };
+    fn init(vm: *Vm, functionType: FunctionType, enclosing: ?*Compiler) Self {
+        var compiler = Self{ .function = Object.Function.create(vm), .functionType = functionType, .enclosing = enclosing };
 
         var local = &compiler.locals[compiler.localCount];
         compiler.localCount += 1;
@@ -147,7 +147,7 @@ const Compiler = struct {
 
 const Local = struct {
     name: Token,
-    depth: ?u32,
+    depth: ?u32 = null,
 };
 
 const Parser = struct {
@@ -237,14 +237,12 @@ const Parser = struct {
     }
 
     fn compileFunction(self: *Self, functionType: FunctionType) void {
-        var functionCompiler = Compiler.init(self.vm, functionType);
-        functionCompiler.enclosing = self.compiler;
-        self.compiler = &functionCompiler;
-
+        var functionCompiler = Compiler.init(self.vm, functionType, self.compiler);
         // book does this in initCompiler which is our Compiler.init,
         // but I don't see a reason why if we're setting function.arity here, we can as well set it's name
         // that way we don't need to make Compiler depend on the Parser which would create bi-directional dependency
         functionCompiler.function.name = Object.String.copy(self.vm, self.previous.lexeme);
+        self.compiler = &functionCompiler;
 
         self.beginScope();
 
@@ -254,7 +252,7 @@ const Parser = struct {
                 self.compiler.function.arity += 1;
 
                 if (self.compiler.function.arity > 255) {
-                    self.errAtCurrent("Can't have more than 255 parameters");                    
+                    self.errAtCurrent("Can't have more than 255 parameters");
                     return;
                 }
 
@@ -269,8 +267,6 @@ const Parser = struct {
 
         self.block();
 
-        self.endScope();
-        
         const function = self.endCompiler();
 
         self.emitOpAndByte(OpCode.op_closure, self.makeConstant(Value.ObjectValue(&function.object)));
@@ -425,9 +421,8 @@ const Parser = struct {
     fn endScope(self: *Self) void {
         self.compiler.scopeDepth -= 1;
 
-        while (self.compiler.localCount > 0 and self.compiler.locals[self.compiler.localCount - 1].depth.? > self.compiler.scopeDepth) {
+        while (self.compiler.localCount > 0 and self.compiler.locals[self.compiler.localCount - 1].depth.? > self.compiler.scopeDepth) : (self.compiler.localCount -= 1) {
             self.emitOp(OpCode.op_pop);
-            self.compiler.localCount -= 1;
         }
     }
 
@@ -458,10 +453,11 @@ const Parser = struct {
     fn namedVariable(self: *Self, name: *Token, canAssign: bool) void {
         var getOp: OpCode = undefined;
         var setOp: OpCode = undefined;
+        var arg: u8 = undefined;
 
-        var arg = self.resolveLocal(name);
+        if (self.resolveLocal(self.compiler, name)) |local| {
+            arg = local;
 
-        if (arg) |_| {
             getOp = OpCode.op_get_local;
             setOp = OpCode.op_set_local;
         } else {
@@ -473,21 +469,22 @@ const Parser = struct {
 
         if (canAssign and self.match(TokenType.Equal)) {
             self.expression();
-            self.emitOpAndByte(setOp, arg.?);
+            self.emitOpAndByte(setOp, arg);
         } else {
-            self.emitOpAndByte(getOp, arg.?);
+            self.emitOpAndByte(getOp, arg);
         }
     }
 
-    fn resolveLocal(self: *Self, name: *Token) ?u8 {
-        var i: usize = self.compiler.localCount;
-        while (i > 0) {
-            i -= 1;
-            const local = &self.compiler.locals[i];
+    fn resolveLocal(self: *Self, compiler: *Compiler, name: *Token) ?u8 {
+        var i: isize = compiler.localCount - 1;
+        while (i >= 0) : (i -= 1) {
+            const local = &compiler.locals[@as(u8, @intCast(i))];
+
             if (self.identifiersEqual(name, &local.name)) {
                 if (local.depth == null) {
                     self.err("Can't read local variable in its own initializer");
                 }
+
                 return @as(u8, @intCast(i));
             }
         }
@@ -644,7 +641,9 @@ const Parser = struct {
 
     fn markInitialized(self: *Self) void {
         if (self.compiler.scopeDepth == 0) return;
-        self.compiler.locals[self.compiler.localCount - 1].depth = self.compiler.scopeDepth;
+
+        const local = &self.compiler.locals[self.compiler.localCount - 1];
+        local.depth = self.compiler.scopeDepth;
     }
 
     fn declareVariable(self: *Self) void {
@@ -652,10 +651,9 @@ const Parser = struct {
 
         const name = &self.previous;
 
-        var i: usize = self.compiler.localCount;
-        while (i > 0) {
-            i -= 1;
-            const local = &self.compiler.locals[i];
+        var i: isize = self.compiler.localCount - 1;
+        while (i >= 0) : (i -= 1) {
+            const local = &self.compiler.locals[@as(usize, @intCast(i))];
 
             if (local.depth != null and local.depth.? < self.compiler.scopeDepth) break;
 
@@ -678,8 +676,11 @@ const Parser = struct {
             return;
         }
 
-        self.compiler.locals[self.compiler.localCount] = Local{ .name = name.*, .depth = null };
+        const local = &self.compiler.locals[self.compiler.localCount];
         self.compiler.localCount += 1;
+
+        local.name = name.*;
+        local.depth = null;
     }
 
     fn errAtCurrent(self: *Self, message: []const u8) void {
