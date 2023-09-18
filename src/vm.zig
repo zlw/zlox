@@ -14,6 +14,8 @@ const compile = @import("./compiler.zig").compile;
 
 const native = @import("./native.zig");
 
+const GarbageCollector = @import("./memory.zig").GarbageCollector;
+
 const debug_trace_execution = debug.debug_trace_execution;
 const debug_stack_execution = debug.debug_stack_execution;
 const debug_garbage_collection = debug.debug_garbage_collection;
@@ -47,6 +49,7 @@ pub const Vm = struct {
     objects: ?*Object = null,
     openUpvalues: ?*Object.Upvalue = null,
     allocator: Allocator,
+    collector: ?*GarbageCollector = null,
 
     pub fn init(allocator: Allocator) Self {
         var vm = Self{ .allocator = allocator, .strings = Table.init(allocator), .globals = Table.init(allocator) };
@@ -55,9 +58,13 @@ pub const Vm = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        self.freeObjects();
+        self.collector.?.freeObjects();
         self.globals.deinit();
         self.strings.deinit();
+    }
+
+    pub fn enableGC(self: *Self, collector: *GarbageCollector) void {
+        self.collector = collector;
     }
 
     pub fn interpret(self: *Self, source: []const u8) InterpretError!void {
@@ -469,24 +476,6 @@ pub const Vm = struct {
                     },
                 }
             },
-        }
-    }
-
-    fn freeObjects(self: *Self) void {
-        var obj = self.objects;
-        var total_objects: u64 = 0;
-
-        while (obj) |object| {
-            if (comptime debug_garbage_collection) {
-                total_objects += 1;
-            }
-            const next = object.next;
-            object.destroy(self);
-            obj = next;
-        }
-
-        if (comptime debug_garbage_collection) {
-            std.log.debug("GC: Objects freed: {d}", .{total_objects});
         }
     }
 };

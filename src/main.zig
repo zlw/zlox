@@ -33,6 +33,8 @@ pub fn main() anyerror!u8 {
 
     var gc = GCAllocator.init(allocator);
     var vm = Vm.init(gc.allocator());
+    gc.enableGC(&vm);
+    vm.enableGC(&gc.collector.?);
     defer vm.deinit();
 
     switch (args.len) {

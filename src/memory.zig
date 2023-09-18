@@ -1,11 +1,14 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+const Vm = @import("./vm.zig").Vm;
+
 const debug_gc = @import("./debug.zig").debug_garbage_collection;
 const debug_stress_gc = true;
 
 pub const GCAllocator = struct {
     parent_allocator: Allocator,
+    collector: ?GarbageCollector = null,
 
     const Self = @This();
 
@@ -24,6 +27,10 @@ pub const GCAllocator = struct {
         };
     }
 
+    pub fn enableGC(self: *Self, vm: *Vm) void {
+        self.collector = GarbageCollector.init(vm);
+    }
+
     fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
@@ -35,7 +42,7 @@ pub const GCAllocator = struct {
 
         if (new_len > buf.len) {
             if (debug_stress_gc) {
-                try self.collectGarbage();
+                try self.collector.?.collectGarbage();
             }
         }
 
@@ -47,6 +54,16 @@ pub const GCAllocator = struct {
 
         return self.parent_allocator.rawFree(buf, buf_align, ret_addr);
     }
+};
+
+pub const GarbageCollector = struct {
+    const Self = @This();
+
+    vm: *Vm,
+
+    pub fn init(vm: *Vm) Self {
+        return .{ .vm = vm };
+    }
 
     fn collectGarbage(self: *Self) !void {
         _ = self;
@@ -56,6 +73,24 @@ pub const GCAllocator = struct {
 
         if (debug_gc) {
             std.log.debug("GC: end", .{});
+        }
+    }
+
+    pub fn freeObjects(self: *Self) void {
+        var obj = self.vm.objects;
+        var total_objects: u64 = 0;
+
+        while (obj) |object| {
+            if (comptime debug_gc) {
+                total_objects += 1;
+            }
+            const next = object.next;
+            object.destroy(self.vm);
+            obj = next;
+        }
+
+        if (comptime debug_gc) {
+            std.log.debug("GC: Objects freed: {d}", .{total_objects});
         }
     }
 };

@@ -8,7 +8,7 @@ const printValue = @import("./value.zig").printValue;
 pub const debug_trace_execution = false;
 pub const debug_stack_execution = false;
 pub const debug_rule_selection = false;
-pub const debug_garbage_collection = true;
+pub const debug_garbage_collection = false;
 pub const debug_print_code = false;
 
 pub fn disassembleChunk(chunk: *Chunk, name: []const u8) void {
