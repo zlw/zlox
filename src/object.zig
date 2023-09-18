@@ -5,6 +5,8 @@ const Vm = @import("./vm.zig").Vm;
 
 const Allocator = std.mem.Allocator;
 
+const debug_garbage_collection = @import("./debug.zig").debug_garbage_collection;
+
 pub const ObjectType = enum { String, Function, NativeFunction, Closure, Upvalue };
 
 pub const Object = struct {
@@ -15,10 +17,19 @@ pub const Object = struct {
         const ptrT = vm.allocator.create(T) catch @panic("Error creating Obj\n");
         ptrT.object = Object{ .objectType = objectType, .next = vm.objects };
         vm.objects = &ptrT.object;
+
+        if (comptime debug_garbage_collection) {
+            std.log.debug("GC: {any} allocate {d} bytes for {s}", .{ @intFromPtr(&ptrT.object), @sizeOf(T), @typeName(T) });
+        }
+
         return ptrT;
     }
 
     pub fn destroy(self: *Object, vm: *Vm) void {
+        if (comptime debug_garbage_collection) {
+            std.log.debug("GC: {any} free type {any}", .{ @intFromPtr(self), self.objectType });
+        }
+
         switch (self.objectType) {
             .String => self.asString().destroy(vm),
             .Function => self.asFunction().destroy(vm),

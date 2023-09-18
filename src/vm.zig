@@ -486,7 +486,7 @@ pub const Vm = struct {
         }
 
         if (comptime debug_garbage_collection) {
-            std.log.debug("Objects freed: {d}", .{total_objects});
+            std.log.debug("GC: Objects freed: {d}", .{total_objects});
         }
     }
 };

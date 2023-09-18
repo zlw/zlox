@@ -22,7 +22,7 @@ pub fn main() anyerror!u8 {
     defer {
         if (comptime debug_garbage_collection) {
             const has_leaked = gpa.detectLeaks();
-            std.log.debug("Leaked: {}", .{has_leaked});
+            std.log.debug("GC: Leaked: {}", .{has_leaked});
         }
     }
 
