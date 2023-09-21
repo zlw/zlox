@@ -86,6 +86,7 @@ pub const GarbageCollector = struct {
 
         self.markRoots();
         self.traceReferences();
+        self.sweep();
 
         if (debug_gc) {
             std.log.debug("GC: end", .{});
@@ -192,6 +193,30 @@ pub const GarbageCollector = struct {
                 }
             },
             .NativeFunction, .String => return,
+        }
+    }
+
+    fn sweep(self: *Self) void {
+        var previous: *Object = null;
+        var object: ?*Object = self.vm.objects;
+
+        while (object != null) {
+            if (object.isMarked) {
+                object.isMarked = false;
+                previous = object;
+                object = object.next;
+            } else {
+                const unreached: *Object = object;
+                object = object.next;
+
+                if (previous != null) {
+                    previous.next = object;
+                } else {
+                    self.vm.objects = object;
+                }
+
+                unreached.destroy(self.vm);
+            }
         }
     }
 
