@@ -13,6 +13,10 @@ const printValue = @import("./value.zig").printValue;
 const debug_gc = @import("./debug.zig").debug_garbage_collection;
 const stress_gc = false;
 
+
+const GC_HEAP_GROW_FACTOR = 2;
+const GC_DEFAULT_NEXT_GC = 1024 * 1024;
+
 pub const GCAllocator = struct {
     parent_allocator: Allocator,
     collector: ?GarbageCollector = null,
@@ -52,8 +56,12 @@ pub const GCAllocator = struct {
     fn resize(ctx: *anyopaque, buf: []u8, log2_buf_align: u8, new_len: usize, ret_addr: usize) bool {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
+        self.collector.?.bytesAllocatedIncreased(new_len - buf.len);
+
         // in stress mode we call GC on every reallocation
         if (comptime stress_gc) if (new_len > buf.len) try self.collector.?.collectGarbage();
+
+        if (self.collector.?.shouldCollect()) try self.collector.?.collectGarbage();
 
         return self.parent_allocator.rawResize(buf, log2_buf_align, new_len, ret_addr);
     }
@@ -70,6 +78,8 @@ pub const GarbageCollector = struct {
 
     vm: *Vm,
     grayObjects: ?DynamicArray(*Object) = null,
+    bytesAllocated: usize = 0,
+    nextGC: usize = GC_DEFAULT_NEXT_GC,
 
     pub fn init(vm: *Vm) Self {
         return .{ .vm = vm };
@@ -79,7 +89,17 @@ pub const GarbageCollector = struct {
         self.grayObjects.?.deinit();
     }
 
+    fn bytesAllocatedIncreased(self: *Self, size: usize) void {
+        self.bytesAllocated += size;
+    }
+
+    fn shouldCollect(self: *Self) bool {
+        return self.bytesAllocated > self.nextGC;
+    }
+
     fn collectGarbage(self: *Self) !void {
+        const before = self.bytesAllocated;
+
         if (debug_gc) {
             std.log.debug("GC: begin", .{});
         }
@@ -89,8 +109,11 @@ pub const GarbageCollector = struct {
         self.tableRemoveWhite(&self.vm.strings);
         self.sweep();
 
+        self.nextGC = self.bytesAllocated * GC_HEAP_GROW_FACTOR;
+
         if (debug_gc) {
             std.log.debug("GC: end", .{});
+            std.log.debug("GC: collected {d} bytes (from {d} to {d}) next at {d}\n", .{ before - self.bytesAllocated, before, self.bytesAllocated, self.nextGC });
         }
     }
 
@@ -153,7 +176,7 @@ pub const GarbageCollector = struct {
     }
 
     fn markArray(self: *Self, array: *Chunk.ValueArray) void {
-        for(array.items) |*item| {
+        for (array.items) |*item| {
             self.markValue(item);
         }
     }
@@ -167,7 +190,7 @@ pub const GarbageCollector = struct {
     }
 
     fn traceReferences(self: *Self) void {
-        for(self.grayObjects.?.items) |object| {
+        for (self.grayObjects.?.items) |object| {
             self.blackenObject(object);
         }
     }
@@ -187,7 +210,7 @@ pub const GarbageCollector = struct {
             .Closure => {
                 const closure = object.asClosure();
                 self.markObject(&closure.function.object);
-                var i = 0;
+                var i: usize = 0;
                 while (i < closure.upvalueCount) : (i += 1) {
                     const upvalue = &closure.upvalues[i];
                     self.markObject(&upvalue.*.object);
@@ -199,30 +222,30 @@ pub const GarbageCollector = struct {
 
     fn tableRemoveWhite(self: *Self, table: *Table) void {
         _ = self;
-        var i = 0;
+        var i: usize = 0;
         while (i < table.capacity) : (i += 1) {
             const entry = &table.entries[i];
             if (entry.key != null and !entry.key.?.object.isMarked) {
-                table.delete(entry.key.?);
+                _ = table.delete(entry.key.?);
             }
         }
     }
 
     fn sweep(self: *Self) void {
-        var previous: *Object = null;
+        var previous: ?*Object = null;
         var object: ?*Object = self.vm.objects;
 
         while (object != null) {
-            if (object.isMarked) {
-                object.isMarked = false;
+            if (object.?.isMarked) {
+                object.?.isMarked = false;
                 previous = object;
-                object = object.next;
+                object = object.?.next;
             } else {
-                const unreached: *Object = object;
-                object = object.next;
+                const unreached: *Object = object.?;
+                object = object.?.next;
 
                 if (previous != null) {
-                    previous.next = object;
+                    previous.?.next = object;
                 } else {
                     self.vm.objects = object;
                 }
@@ -249,6 +272,4 @@ pub const GarbageCollector = struct {
             std.log.debug("GC: Objects freed: {d}", .{total_objects});
         }
     }
-
-
 };
