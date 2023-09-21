@@ -86,6 +86,7 @@ pub const GarbageCollector = struct {
 
         self.markRoots();
         self.traceReferences();
+        self.tableRemoveWhite(&self.vm.strings);
         self.sweep();
 
         if (debug_gc) {
@@ -193,6 +194,17 @@ pub const GarbageCollector = struct {
                 }
             },
             .NativeFunction, .String => return,
+        }
+    }
+
+    fn tableRemoveWhite(self: *Self, table: *Table) void {
+        _ = self;
+        var i = 0;
+        while (i < table.capacity) : (i += 1) {
+            const entry = &table.entries[i];
+            if (entry.key != null and !entry.key.?.object.isMarked) {
+                table.delete(entry.key.?);
+            }
         }
     }
 
