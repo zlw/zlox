@@ -11,6 +11,7 @@ pub const ObjectType = enum { String, Function, NativeFunction, Closure, Upvalue
 
 pub const Object = struct {
     objectType: ObjectType,
+    isMarked: bool = false,
     next: ?*Object,
 
     fn create(vm: *Vm, comptime T: type, objectType: ObjectType) *T {

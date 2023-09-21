@@ -15,6 +15,7 @@ const compile = @import("./compiler.zig").compile;
 const native = @import("./native.zig");
 
 const GarbageCollector = @import("./memory.zig").GarbageCollector;
+const Parser = @import("./compiler.zig").Parser;
 
 const debug_trace_execution = debug.debug_trace_execution;
 const debug_stack_execution = debug.debug_stack_execution;
@@ -50,6 +51,7 @@ pub const Vm = struct {
     openUpvalues: ?*Object.Upvalue = null,
     allocator: Allocator,
     collector: ?*GarbageCollector = null,
+    parser: ?*Parser = null,
 
     pub fn init(allocator: Allocator) Self {
         var vm = Self{ .allocator = allocator, .strings = Table.init(allocator), .globals = Table.init(allocator) };

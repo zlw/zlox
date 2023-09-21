@@ -50,7 +50,7 @@ pub const Chunk = struct {
     const Self = @This();
 
     const BytesArray = DynamicArray(u8);
-    const ValueArray = DynamicArray(Value);
+    pub const ValueArray = DynamicArray(Value);
     const LinesArray = DynamicArray(usize);
 
     code: BytesArray,

@@ -22,6 +22,7 @@ pub fn compile(vm: *Vm, source: []const u8) CompileError!*Object.Function {
     var scanner = Scanner.init(source);
     var compiler = Compiler.init(vm, FunctionType.Script, null);
     var parser = Parser.init(vm, &scanner, &compiler);
+    vm.parser = &parser;
 
     parser.advance();
 
@@ -121,7 +122,7 @@ fn getRule(token_type: TokenType) ParseRule {
 
 const FunctionType = enum { Function, Script };
 
-const Compiler = struct {
+pub const Compiler = struct {
     const Self = @This();
 
     enclosing: ?*Compiler = null,
@@ -157,7 +158,7 @@ const Upvalue = struct {
     isLocal: bool,
 };
 
-const Parser = struct {
+pub const Parser = struct {
     const Self = @This();
 
     vm: *Vm,
