@@ -13,9 +13,10 @@ const printValue = @import("./value.zig").printValue;
 const debug_gc = @import("./debug.zig").debug_garbage_collection;
 const stress_gc = false;
 
-
 const GC_HEAP_GROW_FACTOR = 2;
 const GC_DEFAULT_NEXT_GC = 1024 * 1024;
+
+const GrayObjects = DynamicArray(*Object);
 
 pub const GCAllocator = struct {
     parent_allocator: Allocator,
@@ -34,17 +35,12 @@ pub const GCAllocator = struct {
     pub fn allocator(self: *Self) Allocator {
         return .{
             .ptr = self,
-            .vtable = &.{
-                .alloc = alloc,
-                .resize = resize,
-                .free = free,
-            },
+            .vtable = &.{ .alloc = alloc, .resize = resize, .free = free },
         };
     }
 
     pub fn enableGC(self: *Self, vm: *Vm) void {
-        self.collector = GarbageCollector.init(vm);
-        self.collector.?.grayObjects = DynamicArray(*Object).init(self.parent_allocator);
+        self.collector = GarbageCollector.init(vm, self.parent_allocator);
     }
 
     fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
@@ -77,16 +73,16 @@ pub const GarbageCollector = struct {
     const Self = @This();
 
     vm: *Vm,
-    grayObjects: ?DynamicArray(*Object) = null,
+    grayObjects: GrayObjects,
     bytesAllocated: usize = 0,
     nextGC: usize = GC_DEFAULT_NEXT_GC,
 
-    pub fn init(vm: *Vm) Self {
-        return .{ .vm = vm };
+    pub fn init(vm: *Vm, allocator: Allocator) Self {
+        return .{ .vm = vm, .grayObjects = GrayObjects.init(allocator) };
     }
 
     pub fn deinit(self: *Self) void {
-        self.grayObjects.?.deinit();
+        self.grayObjects.deinit();
     }
 
     fn bytesAllocatedIncreased(self: *Self, size: usize) void {
@@ -152,8 +148,6 @@ pub const GarbageCollector = struct {
     }
 
     fn markObject(self: *Self, object: *Object) void {
-        if (self.grayObjects == null) @panic("No gray stack allocated, can't GC");
-
         if (object.isMarked) return;
 
         if (comptime debug_gc) {
@@ -162,7 +156,7 @@ pub const GarbageCollector = struct {
         }
 
         object.isMarked = true;
-        self.grayObjects.?.appendItem(object);
+        self.grayObjects.appendItem(object);
     }
 
     fn markTable(self: *Self, table: *Table) void {
@@ -190,7 +184,7 @@ pub const GarbageCollector = struct {
     }
 
     fn traceReferences(self: *Self) void {
-        for (self.grayObjects.?.items) |object| {
+        for (self.grayObjects.items) |object| {
             self.blackenObject(object);
         }
     }
