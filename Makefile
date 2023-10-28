@@ -18,7 +18,7 @@ cross_release:
 unit:
 	zig test src/main.zig
 
-system: build
+system: release
 	zig run util/test.zig -- zig-out/bin/zlox `find $(path) -name "*.lox"`
 
 repl: build
