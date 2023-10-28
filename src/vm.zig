@@ -225,7 +225,7 @@ pub const Vm = struct {
         self.openUpvalues = null;
     }
 
-    inline fn push(self: *Self, value: Value) void {
+    pub inline fn push(self: *Self, value: Value) void {
         self.stack[self.stack_top] = value;
         self.stack_top += 1;
     }
@@ -322,7 +322,7 @@ pub const Vm = struct {
         }
     }
 
-    inline fn pop(self: *Self) Value {
+    pub inline fn pop(self: *Self) Value {
         self.stack_top -= 1;
         return self.stack[self.stack_top];
     }
@@ -383,21 +383,30 @@ pub const Vm = struct {
     }
 
     inline fn binaryOp(self: *Self, op: BinaryOp) InterpretError!void {
-        const boxed_rhs = self.pop();
-        const boxed_lhs = self.pop();
+        const boxed_rhs = self.peek(0);
+        const boxed_lhs = self.peek(1);
 
         switch (boxed_lhs) {
             .boolean, .nil => {
+                _ = self.pop();
+                _ = self.pop();
+
                 self.runtimeError("Operands must be two numbers or two strings", .{});
                 return InterpretError.RuntimeError;
             },
             .number => |lhs| {
                 switch (boxed_rhs) {
                     .boolean, .nil => {
+                        _ = self.pop();
+                        _ = self.pop();
+
                         self.runtimeError("Operands must be two numbers or two strings", .{});
                         return InterpretError.RuntimeError;
                     },
                     .object => {
+                        _ = self.pop();
+                        _ = self.pop();
+
                         self.runtimeError("Operands must be numbers", .{});
                         return InterpretError.RuntimeError;
                     },
@@ -409,6 +418,9 @@ pub const Vm = struct {
                             .div => lhs / rhs,
                         };
 
+                        _ = self.pop();
+                        _ = self.pop();
+
                         self.push(Value.NumberValue(result));
                     },
                 }
@@ -416,21 +428,33 @@ pub const Vm = struct {
             .object => |lhs| {
                 switch (boxed_rhs) {
                     .boolean, .nil => {
+                        _ = self.pop();
+                        _ = self.pop();
+
                         self.runtimeError("Operands must be two numbers or two strings", .{});
                         return InterpretError.RuntimeError;
                     },
                     .number => {
+                        _ = self.pop();
+                        _ = self.pop();
+
                         self.runtimeError("Operands must be numbers", .{});
                         return InterpretError.RuntimeError;
                     },
                     .object => |rhs| {
                         switch (lhs.objectType) {
                             .Function, .NativeFunction, .Closure, .Upvalue => {
+                                _ = self.pop();
+                                _ = self.pop();
+
                                 self.runtimeError("Operands must be two numbers or two strings", .{});
                                 return InterpretError.RuntimeError;
                             },
                             .String => switch (rhs.objectType) {
                                 .Function, .NativeFunction, .Closure, .Upvalue => {
+                                    _ = self.pop();
+                                    _ = self.pop();
+
                                     self.runtimeError("Operands must be two numbers or two strings", .{});
                                     return InterpretError.RuntimeError;
                                 },
@@ -440,6 +464,9 @@ pub const Vm = struct {
                                             const heap = std.mem.concat(self.allocator, u8, &[_][]const u8{ lhs.asString().chars, rhs.asString().chars }) catch unreachable;
                                             const obj = Object.String.take(self, heap);
 
+                                            _ = self.pop();
+                                            _ = self.pop();
+                                            
                                             self.push(Value.ObjectValue(&obj.object));
                                         },
                                         else => unreachable,

@@ -103,7 +103,11 @@ pub const Object = struct {
             str.chars = bytes;
             str.hash = hash;
 
+            vm.push(Value.ObjectValue(&str.object));
+
             _ = vm.strings.set(str, Value.NilValue());
+
+            _ = vm.pop();
 
             return str;
         }
@@ -127,7 +131,7 @@ pub const Object = struct {
             function.arity = 0;
             function.upvalueCount = 0;
             function.name = null;
-            function.chunk = Chunk.init(vm.allocator);
+            function.chunk = Chunk.init(vm.allocator, vm);
 
             return function;
         }

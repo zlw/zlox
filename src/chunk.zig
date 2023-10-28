@@ -1,6 +1,7 @@
 const std = @import("std");
 const DynamicArray = @import("./dynamic_array.zig").DynamicArray;
 const Value = @import("./value.zig").Value;
+const Vm = @import("./vm.zig").Vm;
 
 const Allocator = std.mem.Allocator;
 
@@ -53,12 +54,14 @@ pub const Chunk = struct {
     pub const ValueArray = DynamicArray(Value);
     const LinesArray = DynamicArray(usize);
 
+    vm: *Vm,
     code: BytesArray,
     constants: ValueArray,
     lines: LinesArray,
 
-    pub fn init(allocator: Allocator) Chunk {
+    pub fn init(allocator: Allocator, vm: *Vm) Chunk {
         return Self{
+            .vm = vm,
             .code = BytesArray.init(allocator),
             .constants = ValueArray.init(allocator),
             .lines = LinesArray.init(allocator),
@@ -77,7 +80,12 @@ pub const Chunk = struct {
     }
 
     pub fn addConstant(self: *Self, value: Value) !u16 {
+        self.vm.push(value);
+
         self.constants.appendItem(value);
+
+        _ = self.vm.pop();
+
         return @as(u16, @intCast(self.constants.count - 1));
     }
 };
@@ -86,7 +94,9 @@ test "create a Chunk with bytes only" {
     const expect = std.testing.expect;
     const allocator = std.testing.allocator;
 
-    var chunk = Chunk.init(allocator);
+    var vm = Vm.init(allocator);
+    defer vm.deinit();
+    var chunk = Chunk.init(allocator, &vm);
     defer chunk.deinit();
 
     try chunk.write(OpCode.op_return.toU8(), 1);
