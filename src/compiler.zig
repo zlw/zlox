@@ -76,7 +76,7 @@ fn getRule(token_type: TokenType) ParseRule {
         .LeftBrace => comptime ParseRule.init(null, null, Precedence.None),
         .RightBrace => comptime ParseRule.init(null, null, Precedence.None),
         .Comma => comptime ParseRule.init(null, null, Precedence.None),
-        .Dot => comptime ParseRule.init(null, null, Precedence.None),
+        .Dot => comptime ParseRule.init(null, Parser.dot, Precedence.Call),
         .Minus => comptime ParseRule.init(Parser.unary, Parser.binary, Precedence.Term),
         .Plus => comptime ParseRule.init(null, Parser.binary, Precedence.Term),
         .Semicolon => comptime ParseRule.init(null, null, Precedence.None),
@@ -614,6 +614,18 @@ pub const Parser = struct {
         _ = canAssign;
         const argCount = self.argumentList();
         self.emitOpAndByte(OpCode.op_call, argCount);
+    }
+
+    fn dot(self: *Self, canAssign: bool) void {
+        self.consume(TokenType.Identifier, "Expect property name after '.'");
+        const name = self.identifierConstant(&self.previous);
+
+        if (canAssign and self.match(TokenType.Equal)) {
+            self.expression();
+            self.emitOpAndByte(OpCode.op_set_property, name);
+        } else {
+            self.emitOpAndByte(OpCode.op_get_property, name);
+        }
     }
 
     fn literal(self: *Self, canAssign: bool) void {

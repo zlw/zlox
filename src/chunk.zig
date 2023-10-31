@@ -30,6 +30,8 @@ pub const OpCode = enum(u8) {
     op_set_local,
     op_get_upvalue,
     op_set_upvalue,
+    op_get_property,
+    op_set_property,
     op_close_upvalue,
     op_jump,
     op_jump_if_false,

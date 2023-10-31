@@ -209,6 +209,38 @@ pub const Vm = struct {
                     const class = Object.Class.create(self, className);
                     self.push(Value.ObjectValue(&class.object));
                 },
+                .op_get_property => {
+                    if (!Object.isA(self.peek(0), .Instance)) {
+                        self.runtimeError("Only instances have properties", .{});
+                        return InterpretError.RuntimeError;
+                    }
+
+                    const instance = self.peek(0).object.asInstance();
+                    const name = self.readConstant().object.asString();
+
+                    if (instance.fields.get(name)) |value| {
+                        _ = self.pop();
+                        self.push(value.*);
+                    } else {
+                        self.runtimeError("Undefined property '{s}'", .{name.chars});
+                        return InterpretError.RuntimeError;
+                    }
+                },
+                .op_set_property => {
+                    if (!Object.isA(self.peek(1), .Instance)) {
+                        self.runtimeError("Only instances have fields", .{});
+                        return InterpretError.RuntimeError;
+                    }
+
+                    const instance = self.peek(1).object.asInstance();
+                    const name = self.readConstant().object.asString();
+
+                    _ = instance.fields.set(name, self.peek(0));
+
+                    const value = self.pop();
+                    _ = self.pop();
+                    self.push(value);
+                },
                 .op_return => {
                     const result = self.pop();
                     const frame = self.currentFrame();
