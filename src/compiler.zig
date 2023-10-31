@@ -213,7 +213,9 @@ pub const Parser = struct {
     }
 
     fn declaration(self: *Self) void {
-        if (self.match(TokenType.Fun)) {
+        if (self.match(TokenType.Class)) {
+            self.classDeclaration();
+        } else if (self.match(TokenType.Fun)) {
             self.funDeclaration();
         } else if (self.match(TokenType.Var)) {
             self.varDeclaration();
@@ -235,6 +237,18 @@ pub const Parser = struct {
                 else => self.advance(),
             }
         }
+    }
+
+    fn classDeclaration(self: *Self) void {
+        self.consume(TokenType.Identifier, "Expect class name");
+        const className = self.identifierConstant(&self.previous);
+        self.declareVariable();
+
+        self.emitOpAndByte(OpCode.op_class, className);
+        self.defineVariable(className);
+
+        self.consume(TokenType.LeftBrace, "Expect '{' before class body");
+        self.consume(TokenType.RightBrace, "Expect '}' after class body");
     }
 
     fn funDeclaration(self: *Self) void {

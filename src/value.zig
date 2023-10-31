@@ -58,7 +58,8 @@ pub fn printValue(boxed: Value) void {
                 const name = if (value.asClosure().function.name) |name| name.chars else "script";
                 stdout.print("<fn {s}>\n", .{name}) catch @panic(msg);
             },
-            .Upvalue => stdout.print("upvalue", .{}) catch @panic(msg)
+            .Upvalue => stdout.print("upvalue\n", .{}) catch @panic(msg),
+            .Class => stdout.print("{s}\n", .{value.asClass().name.chars}) catch @panic(msg),
         },
     }
 }

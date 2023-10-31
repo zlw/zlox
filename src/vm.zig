@@ -204,6 +204,11 @@ pub const Vm = struct {
                         }
                     }
                 },
+                .op_class => {
+                    const className = self.readConstant().object.asString();
+                    const class = Object.Class.create(self, className);
+                    self.push(Value.ObjectValue(&class.object));
+                },
                 .op_return => {
                     const result = self.pop();
                     const frame = self.currentFrame();
@@ -443,7 +448,7 @@ pub const Vm = struct {
                     },
                     .object => |rhs| {
                         switch (lhs.objectType) {
-                            .Function, .NativeFunction, .Closure, .Upvalue => {
+                            .Function, .NativeFunction, .Closure, .Upvalue, .Class => {
                                 _ = self.pop();
                                 _ = self.pop();
 
@@ -451,7 +456,7 @@ pub const Vm = struct {
                                 return InterpretError.RuntimeError;
                             },
                             .String => switch (rhs.objectType) {
-                                .Function, .NativeFunction, .Closure, .Upvalue => {
+                                .Function, .NativeFunction, .Closure, .Upvalue, .Class => {
                                     _ = self.pop();
                                     _ = self.pop();
 
@@ -466,7 +471,7 @@ pub const Vm = struct {
 
                                             _ = self.pop();
                                             _ = self.pop();
-                                            
+
                                             self.push(Value.ObjectValue(&obj.object));
                                         },
                                         else => unreachable,

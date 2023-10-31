@@ -7,7 +7,7 @@ const Allocator = std.mem.Allocator;
 
 const debug_garbage_collection = @import("./debug.zig").debug_garbage_collection;
 
-pub const ObjectType = enum { String, Function, NativeFunction, Closure, Upvalue };
+pub const ObjectType = enum { String, Function, NativeFunction, Closure, Upvalue, Class };
 
 pub const Object = struct {
     objectType: ObjectType,
@@ -37,6 +37,7 @@ pub const Object = struct {
             .NativeFunction => self.asNativeFunction().destroy(vm),
             .Closure => self.asClosure().destroy(vm),
             .Upvalue => self.asUpvalue().destroy(vm),
+            .Class => self.asClass().destroy(vm),
         }
     }
 
@@ -58,6 +59,10 @@ pub const Object = struct {
 
     pub inline fn asUpvalue(self: *Object) *Upvalue {
         return @fieldParentPtr(Upvalue, "object", self);
+    }
+
+    pub inline fn asClass(self: *Object) *Class {
+        return @fieldParentPtr(Class, "object", self);
     }
 
     pub inline fn isA(value: Value, objectType: ObjectType) bool {
@@ -198,6 +203,23 @@ pub const Object = struct {
         }
 
         pub fn destroy(self: *Upvalue, vm: *Vm) void {
+            vm.allocator.destroy(self);
+        }
+    };
+
+    pub const Class = struct {
+        object: Object,
+        name: *String,
+
+        pub fn create(vm: *Vm, name: *String) *Class {
+            const class = Object.create(vm, Class, .Class);
+
+            class.name = name;
+
+            return class;
+        }
+
+        pub fn destroy(self: *Class, vm: *Vm) void {
             vm.allocator.destroy(self);
         }
     };

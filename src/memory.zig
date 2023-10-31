@@ -210,6 +210,10 @@ pub const GarbageCollector = struct {
                     self.markObject(&upvalue.*.object);
                 }
             },
+            .Class => {
+                const class = object.asClass();
+                self.markObject(&class.name.object);
+            },
             .NativeFunction, .String => return,
         }
     }
