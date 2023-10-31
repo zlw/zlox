@@ -246,6 +246,14 @@ pub const Vm = struct {
                     //.Function => return self.call(object.asFunction(), argCount),
                     .NativeFunction => return self.callNative(object.asNativeFunction(), argCount),
                     .Closure => return self.call(object.asClosure(), argCount),
+                    .Class => {
+                        const class = object.asClass();
+                        const instance = Object.Instance.create(self, class);
+
+                        self.stack[self.stack_top - argCount - 1] = Value.ObjectValue(&instance.object);
+
+                        return true;
+                    },
                     else => {
                         self.runtimeError("Can only call functions and classes", .{});
                         return false;
@@ -448,7 +456,7 @@ pub const Vm = struct {
                     },
                     .object => |rhs| {
                         switch (lhs.objectType) {
-                            .Function, .NativeFunction, .Closure, .Upvalue, .Class => {
+                            .Function, .NativeFunction, .Closure, .Upvalue, .Class, .Instance => {
                                 _ = self.pop();
                                 _ = self.pop();
 
@@ -456,7 +464,7 @@ pub const Vm = struct {
                                 return InterpretError.RuntimeError;
                             },
                             .String => switch (rhs.objectType) {
-                                .Function, .NativeFunction, .Closure, .Upvalue, .Class => {
+                                .Function, .NativeFunction, .Closure, .Upvalue, .Class, .Instance => {
                                     _ = self.pop();
                                     _ = self.pop();
 

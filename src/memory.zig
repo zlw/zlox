@@ -214,6 +214,11 @@ pub const GarbageCollector = struct {
                 const class = object.asClass();
                 self.markObject(&class.name.object);
             },
+            .Instance => {
+                const instance = object.asInstance();
+                self.markObject(&instance.class.object);
+                self.markTable(&instance.fields);
+            },
             .NativeFunction, .String => return,
         }
     }

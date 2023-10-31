@@ -60,6 +60,7 @@ pub fn printValue(boxed: Value) void {
             },
             .Upvalue => stdout.print("upvalue\n", .{}) catch @panic(msg),
             .Class => stdout.print("{s}\n", .{value.asClass().name.chars}) catch @panic(msg),
+            .Instance => stdout.print("{s} instance\n", .{value.asInstance().class.name.chars}) catch @panic(msg),
         },
     }
 }
