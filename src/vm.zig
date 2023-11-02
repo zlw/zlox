@@ -221,8 +221,7 @@ pub const Vm = struct {
                     if (instance.fields.get(name)) |value| {
                         _ = self.pop();
                         self.push(value.*);
-                    } else {
-                        self.runtimeError("Undefined property '{s}'", .{name.chars});
+                    } else if (!self.bindMethod(instance.class, name)) {
                         return InterpretError.RuntimeError;
                     }
                 },
@@ -287,6 +286,7 @@ pub const Vm = struct {
 
                         return true;
                     },
+                    .BoundMethod => return self.call(object.asBoundMethod().method, argCount),
                     else => {
                         self.runtimeError("Can only call functions and classes", .{});
                         return false;
@@ -433,6 +433,18 @@ pub const Vm = struct {
         const class = self.peek(1).object.asClass();
         _ = class.methods.set(name, method);
         _ = self.pop();
+    }
+
+    fn bindMethod(self: *Self, class: *Object.Class, name: *Object.String) bool {
+        if (class.methods.get(name)) |method| {
+            const boundMethod = Object.BoundMethod.create(self, self.peek(0), method.object.asClosure());
+            _ = self.pop();
+            self.push(Value.ObjectValue(&boundMethod.object));
+            return true;
+        } else {
+            self.runtimeError("Undefined property '{s}'", .{name.chars});
+            return false;
+        }
     }
 
     inline fn binaryOp(self: *Self, op: BinaryOp) InterpretError!void {
