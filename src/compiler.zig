@@ -241,14 +241,27 @@ pub const Parser = struct {
 
     fn classDeclaration(self: *Self) void {
         self.consume(TokenType.Identifier, "Expect class name");
-        const className = self.identifierConstant(&self.previous);
+        const className = &self.previous;
+        const nameConstant = self.identifierConstant(&self.previous);
         self.declareVariable();
 
-        self.emitOpAndByte(OpCode.op_class, className);
-        self.defineVariable(className);
+        self.emitOpAndByte(OpCode.op_class, nameConstant);
+        self.defineVariable(nameConstant);
+        self.namedVariable(className, false);
 
         self.consume(TokenType.LeftBrace, "Expect '{' before class body");
+        while (!self.check(TokenType.RightBrace) and !self.check(TokenType.Eof)) {
+            self.methodDeclaration();
+        }
         self.consume(TokenType.RightBrace, "Expect '}' after class body");
+        self.emitOp(OpCode.op_pop);
+    }
+
+    fn methodDeclaration(self: *Self) void {
+        self.consume(TokenType.Identifier, "Expect method name");
+        const constant = self.identifierConstant(&self.previous);
+        self.compileFunction(FunctionType.Function);
+        self.emitOpAndByte(OpCode.op_method, constant);
     }
 
     fn funDeclaration(self: *Self) void {

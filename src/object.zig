@@ -216,16 +216,19 @@ pub const Object = struct {
     pub const Class = struct {
         object: Object,
         name: *String,
+        methods: Table,
 
         pub fn create(vm: *Vm, name: *String) *Class {
             const class = Object.create(vm, Class, .Class);
 
             class.name = name;
+            class.methods = Table.init(vm.allocator);
 
             return class;
         }
 
         pub fn destroy(self: *Class, vm: *Vm) void {
+            self.methods.deinit();
             vm.allocator.destroy(self);
         }
     };

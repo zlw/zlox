@@ -39,6 +39,7 @@ pub const OpCode = enum(u8) {
     op_call,
     op_closure,
     op_class,
+    op_method,
     op_return,
 
     pub fn toU8(self: Self) u8 {

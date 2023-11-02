@@ -241,6 +241,7 @@ pub const Vm = struct {
                     _ = self.pop();
                     self.push(value);
                 },
+                .op_method => self.defineMethod(self.readConstant().object.asString()),
                 .op_return => {
                     const result = self.pop();
                     const frame = self.currentFrame();
@@ -424,6 +425,13 @@ pub const Vm = struct {
         _ = self.globals.set(self.stack[0].object.asString(), self.stack[1]);
 
         _ = self.pop();
+        _ = self.pop();
+    }
+
+    fn defineMethod(self: *Self, name: *Object.String) void {
+        const method = self.peek(0);
+        const class = self.peek(1).object.asClass();
+        _ = class.methods.set(name, method);
         _ = self.pop();
     }
 
