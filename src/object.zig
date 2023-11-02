@@ -8,7 +8,7 @@ const Allocator = std.mem.Allocator;
 
 const debug_garbage_collection = @import("./debug.zig").debug_garbage_collection;
 
-pub const ObjectType = enum { String, Function, NativeFunction, Closure, Upvalue, Class, Instance };
+pub const ObjectType = enum { String, Function, NativeFunction, Closure, Upvalue, Class, Instance, BoundMethod };
 
 pub const Object = struct {
     objectType: ObjectType,
@@ -40,6 +40,7 @@ pub const Object = struct {
             .Upvalue => self.asUpvalue().destroy(vm),
             .Class => self.asClass().destroy(vm),
             .Instance => self.asInstance().destroy(vm),
+            .BoundMethod => self.asBoundMethod().destroy(vm),
         }
     }
 
@@ -69,6 +70,10 @@ pub const Object = struct {
 
     pub inline fn asInstance(self: *Object) *Instance {
         return @fieldParentPtr(Instance, "object", self);
+    }
+
+    pub inline fn asBoundMethod(self: *Object) *BoundMethod {
+        return @fieldParentPtr(BoundMethod, "object", self);
     }
 
     pub inline fn isA(value: Value, objectType: ObjectType) bool {
@@ -249,6 +254,25 @@ pub const Object = struct {
 
         pub fn destroy(self: *Instance, vm: *Vm) void {
             self.fields.deinit();
+            vm.allocator.destroy(self);
+        }
+    };
+
+    pub const BoundMethod = struct {
+        object: Object,
+        receiver: Value,
+        method: *Object.Closure,
+
+        pub fn create(vm: *Vm, receiver: Value, method: *Object.Closure) *BoundMethod {
+            const bound = Object.create(vm, BoundMethod, .BoundMethod);
+
+            bound.receiver = receiver;
+            bound.method = method;
+
+            return bound;
+        }
+
+        pub fn destroy(self: *BoundMethod, vm: *Vm) void {
             vm.allocator.destroy(self);
         }
     };

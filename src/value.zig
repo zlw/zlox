@@ -61,6 +61,10 @@ pub fn printValue(boxed: Value) void {
             .Upvalue => stdout.print("upvalue\n", .{}) catch @panic(msg),
             .Class => stdout.print("{s}\n", .{value.asClass().name.chars}) catch @panic(msg),
             .Instance => stdout.print("{s} instance\n", .{value.asInstance().class.name.chars}) catch @panic(msg),
+            .BoundMethod => {
+                const name = if (value.asBoundMethod().method.function.name) |name| name.chars else "script";
+                stdout.print("<fn {s}>\n", .{name}) catch @panic(msg);
+            },
         },
     }
 }

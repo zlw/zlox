@@ -496,7 +496,7 @@ pub const Vm = struct {
                     },
                     .object => |rhs| {
                         switch (lhs.objectType) {
-                            .Function, .NativeFunction, .Closure, .Upvalue, .Class, .Instance => {
+                            .Function, .NativeFunction, .Closure, .Upvalue, .Class, .Instance, .BoundMethod => {
                                 _ = self.pop();
                                 _ = self.pop();
 
@@ -504,7 +504,7 @@ pub const Vm = struct {
                                 return InterpretError.RuntimeError;
                             },
                             .String => switch (rhs.objectType) {
-                                .Function, .NativeFunction, .Closure, .Upvalue, .Class, .Instance => {
+                                .Function, .NativeFunction, .Closure, .Upvalue, .Class, .Instance, .BoundMethod => {
                                     _ = self.pop();
                                     _ = self.pop();
 

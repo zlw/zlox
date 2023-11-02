@@ -220,6 +220,11 @@ pub const GarbageCollector = struct {
                 self.markObject(&instance.class.object);
                 self.markTable(&instance.fields);
             },
+            .BoundMethod => {
+                const bound = object.asBoundMethod();
+                self.markValue(&bound.receiver);
+                self.markObject(&bound.method.object);
+            },
             .NativeFunction, .String => return,
         }
     }
