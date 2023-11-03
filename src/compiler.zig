@@ -152,6 +152,10 @@ pub const Compiler = struct {
     }
 };
 
+pub const ClassCompiler = struct {
+    enclosing: ?*ClassCompiler,
+};
+
 const Local = struct {
     name: Token,
     depth: ?u32 = null,
@@ -171,6 +175,7 @@ pub const Parser = struct {
     previous: Token = undefined,
     scanner: *Scanner,
     compiler: *Compiler,
+    classCompiler: ?*ClassCompiler = null,
     hadError: bool = false,
     panicMode: bool = false,
 
@@ -252,6 +257,11 @@ pub const Parser = struct {
 
         self.emitOpAndByte(OpCode.op_class, nameConstant);
         self.defineVariable(nameConstant);
+
+        var classCompiler = ClassCompiler{ .enclosing = self.classCompiler };
+        self.classCompiler = &classCompiler;
+        defer self.classCompiler = self.classCompiler.?.enclosing;
+
         self.namedVariable(className, false);
 
         self.consume(TokenType.LeftBrace, "Expect '{' before class body");
@@ -648,6 +658,12 @@ pub const Parser = struct {
 
     fn this(self: *Self, canAssign: bool) void {
         _ = canAssign;
+
+        if (self.classCompiler == null) {
+            self.err("Can't use 'this' outside of a class");
+            return;
+        }
+
         self.variable(false);
     }
 
