@@ -286,7 +286,11 @@ pub const Vm = struct {
 
                         return true;
                     },
-                    .BoundMethod => return self.call(object.asBoundMethod().method, argCount),
+                    .BoundMethod => {
+                        const boundMethod = object.asBoundMethod();
+                        self.stack[self.stack_top - argCount - 1] = boundMethod.receiver;
+                        return self.call(boundMethod.method, argCount);
+                    },
                     else => {
                         self.runtimeError("Can only call functions and classes", .{});
                         return false;

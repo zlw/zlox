@@ -105,7 +105,7 @@ fn getRule(token_type: TokenType) ParseRule {
         .Print => comptime ParseRule.init(null, null, Precedence.None),
         .Return => comptime ParseRule.init(null, null, Precedence.None),
         .Super => comptime ParseRule.init(null, null, Precedence.None),
-        .This => comptime ParseRule.init(null, null, Precedence.None),
+        .This => comptime ParseRule.init(Parser.this, null, Precedence.None),
         .True => comptime ParseRule.init(Parser.literal, null, Precedence.None),
         .Var => comptime ParseRule.init(null, null, Precedence.None),
         .While => comptime ParseRule.init(null, null, Precedence.None),
@@ -120,7 +120,7 @@ fn getRule(token_type: TokenType) ParseRule {
     return rule;
 }
 
-const FunctionType = enum { Function, Script };
+const FunctionType = enum { Function, Method, Script };
 
 pub const Compiler = struct {
     const Self = @This();
@@ -141,7 +141,12 @@ pub const Compiler = struct {
         var local = &compiler.locals[compiler.localCount];
         compiler.localCount += 1;
         local.depth = 0;
-        local.name.lexeme = "";
+
+        if (functionType != FunctionType.Function) {
+            local.name.lexeme = "this";
+        } else {
+            local.name.lexeme = "";
+        }
 
         return compiler;
     }
@@ -260,7 +265,7 @@ pub const Parser = struct {
     fn methodDeclaration(self: *Self) void {
         self.consume(TokenType.Identifier, "Expect method name");
         const constant = self.identifierConstant(&self.previous);
-        self.compileFunction(FunctionType.Function);
+        self.compileFunction(FunctionType.Method);
         self.emitOpAndByte(OpCode.op_method, constant);
     }
 
@@ -639,6 +644,11 @@ pub const Parser = struct {
         } else {
             self.emitOpAndByte(OpCode.op_get_property, name);
         }
+    }
+
+    fn this(self: *Self, canAssign: bool) void {
+        _ = canAssign;
+        self.variable(false);
     }
 
     fn literal(self: *Self, canAssign: bool) void {
