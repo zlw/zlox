@@ -120,7 +120,7 @@ fn getRule(token_type: TokenType) ParseRule {
     return rule;
 }
 
-const FunctionType = enum { Function, Method, Script };
+const FunctionType = enum { Function, Method, Initializer, Script };
 
 pub const Compiler = struct {
     const Self = @This();
@@ -275,7 +275,13 @@ pub const Parser = struct {
     fn methodDeclaration(self: *Self) void {
         self.consume(TokenType.Identifier, "Expect method name");
         const constant = self.identifierConstant(&self.previous);
-        self.compileFunction(FunctionType.Method);
+        var functionType = FunctionType.Method;
+
+        if (std.mem.eql(u8, self.previous.lexeme, "init")) {
+            functionType = FunctionType.Initializer;
+        }
+
+        self.compileFunction(functionType);
         self.emitOpAndByte(OpCode.op_method, constant);
     }
 
@@ -442,6 +448,10 @@ pub const Parser = struct {
         if (self.match(TokenType.Semicolon)) {
             self.emitReturn();
         } else {
+            if (self.compiler.functionType == FunctionType.Initializer) {
+                self.err("Can't return a value from an initializer");
+            }
+
             self.expression();
             self.consume(TokenType.Semicolon, "Expect ';' after return value");
             self.emitOp(OpCode.op_return);
@@ -922,7 +932,12 @@ pub const Parser = struct {
     }
 
     fn emitReturn(self: *Self) void {
-        self.emitOp(OpCode.op_nil);
+        if (self.compiler.functionType == FunctionType.Initializer) {
+            self.emitOpAndByte(OpCode.op_get_local, 0);
+        } else {
+            self.emitOp(OpCode.op_nil);
+        }
+
         self.emitOp(OpCode.op_return);
     }
 };

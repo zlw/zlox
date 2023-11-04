@@ -138,6 +138,8 @@ pub const GarbageCollector = struct {
         self.markTable(&self.vm.globals);
 
         self.markCompilerRoots();
+
+        self.markObject(&self.vm.initString.?.object);
     }
 
     fn markValue(self: *Self, value: *Value) void {

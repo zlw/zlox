@@ -46,6 +46,7 @@ pub const Vm = struct {
     stack: [stack_max]Value = undefined,
     stack_top: usize = 0,
     strings: Table,
+    initString: ?*Object.String = null,
     globals: Table,
     objects: ?*Object = null,
     openUpvalues: ?*Object.Upvalue = null,
@@ -55,14 +56,16 @@ pub const Vm = struct {
 
     pub fn init(allocator: Allocator) Self {
         var vm = Self{ .allocator = allocator, .strings = Table.init(allocator), .globals = Table.init(allocator) };
+        vm.initString = Object.String.copy(&vm, "init");
         vm.defineNative("clock", native.clockNative);
         return vm;
     }
 
     pub fn deinit(self: *Self) void {
-        self.collector.?.freeObjects();
         self.globals.deinit();
         self.strings.deinit();
+        self.initString = null;
+        self.collector.?.freeObjects();
     }
 
     pub fn enableGC(self: *Self, collector: *GarbageCollector) void {
@@ -283,6 +286,13 @@ pub const Vm = struct {
                         const instance = Object.Instance.create(self, class);
 
                         self.stack[self.stack_top - argCount - 1] = Value.ObjectValue(&instance.object);
+
+                        if (class.methods.get(self.initString.?)) |initializer| {
+                            return self.call(initializer.object.asClosure(), argCount);
+                        } else if (argCount != 0) {
+                            self.runtimeError("Expected 0 arguments but got {d}", .{argCount});
+                            return false;
+                        }
 
                         return true;
                     },
