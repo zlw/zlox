@@ -61,6 +61,7 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) usize {
         .op_jump_if_false => jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset),
         .op_loop => jumpInstruction("OP_LOOP", -1, chunk, offset),
         .op_call => byteInstruction("OP_CALL", chunk, offset),
+        .op_invoke => invokeInstruction("OP_INVOKE", chunk, offset),
         .op_closure => closureInstruction("OP_CLOSURE", chunk, offset),
         .op_get_upvalue => byteInstruction("OP_GET_UPVALUE", chunk, offset),
         .op_set_upvalue => byteInstruction("OP_SET_UPVALUE", chunk, offset),
@@ -122,6 +123,17 @@ fn closureInstruction(name: []const u8, chunk: *Chunk, initialOffset: usize) usi
     }
 
     return offset;
+}
+
+fn invokeInstruction(name: []const u8, chunk: *Chunk, offset: usize) usize {
+    const constant = chunk.code.items[offset + 1];
+    const argCount = chunk.code.items[offset + 2];
+    std.debut.print("{s} ({d} args) {d} '", name, argCount, constant);
+
+    printValue(chunk.constants.items[constant]);
+    std.debug.print("' \n", .{});
+
+    return offset + 3;
 }
 
 pub fn printStack(stack: []Value) void {

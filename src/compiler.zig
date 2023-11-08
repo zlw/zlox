@@ -661,6 +661,10 @@ pub const Parser = struct {
         if (canAssign and self.match(TokenType.Equal)) {
             self.expression();
             self.emitOpAndByte(OpCode.op_set_property, name);
+        } else if (self.match(TokenType.LeftParen)) {
+            const argCount = self.argumentList();
+            self.emitOpAndByte(OpCode.op_invoke, name);
+            self.emitByte(argCount);
         } else {
             self.emitOpAndByte(OpCode.op_get_property, name);
         }

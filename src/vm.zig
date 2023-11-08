@@ -244,6 +244,14 @@ pub const Vm = struct {
                     self.push(value);
                 },
                 .op_method => self.defineMethod(self.readConstant().object.asString()),
+                .op_invoke => {
+                    const method = self.readConstant().object.asString();
+                    const argCount = self.readByte();
+
+                    if (!self.invoke(method, argCount)) {
+                        return InterpretError.RuntimeError;
+                    }
+                },
                 .op_return => {
                     const result = self.pop();
                     const frame = self.currentFrame();
@@ -311,6 +319,33 @@ pub const Vm = struct {
                 self.runtimeError("Can only call functions and classes", .{});
                 return false;
             },
+        }
+    }
+
+    fn invoke(self: *Self, name: *Object.String, argCount: u8) bool {
+        const receiver = self.peek(argCount);
+
+        if (!Object.isA(receiver, .Instance)) {
+            self.runtimeError("Only instances have methods", .{});
+            return false;
+        }
+
+        const instance = receiver.object.asInstance();
+
+        if (instance.fields.get(name)) |value| {
+            self.stack[self.stack_top - argCount - 1] = value.*;
+            return self.callValue(value.*, argCount);
+         }
+
+        return self.invokeFromClass(instance.class, name, argCount);
+    }
+
+    fn invokeFromClass(self: *Self, class: *Object.Class, name: *Object.String, argCount: u8) bool {
+        if (class.methods.get(name)) |method| {
+            return self.call(method.object.asClosure(), argCount);
+        } else {
+            self.runtimeError("Undefined property '{s}'", .{name.chars});
+            return false;
         }
     }
 
