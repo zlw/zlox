@@ -77,14 +77,14 @@ pub const Table = struct {
 
     pub fn addAll(from: *Self, to: *Table) void {
         for (from.entries) |entry| {
-            if (entry.key) |_| {
-                to.set(entry.key, entry.val);
+            if (entry.key) |key| {
+                _ = to.set(key, entry.val);
             }
         }
     }
 
     pub fn findString(self: *Self, chars: []const u8, hash: u32) ?*String {
-        if (self.count == 0) return null; 
+        if (self.count == 0) return null;
 
         var index = hash % self.capacity;
         while (true) {
@@ -92,8 +92,8 @@ pub const Table = struct {
             if (entry.key == null) {
                 // Stop if we find an empty non-tombstone entry.
                 if (entry.val.isNil()) return null;
-            } else if (entry.key.?.chars.len == chars.len 
-                   and entry.key.?.hash == hash 
+            } else if (entry.key.?.chars.len == chars.len
+                   and entry.key.?.hash == hash
                    and std.mem.eql(u8, entry.key.?.chars, chars)) {
                 return entry.key;
             }
@@ -185,17 +185,17 @@ test "create a Table and add many antries until we adjustCapacity" {
     try expect(table.capacity == 0);
 
     _ = table.set(String.copy(&vm, "a"), Value.NumberValue(1.0));
-    
+
     // after first entry we reached capacity limit, so capacity increased
     try expect(table.capacity == 8);
-    
+
     _ = table.set(String.copy(&vm, "b"), Value.NumberValue(2.0));
     _ = table.set(String.copy(&vm, "c"), Value.NumberValue(3.0));
     _ = table.set(String.copy(&vm, "d"), Value.NumberValue(4.0));
     _ = table.set(String.copy(&vm, "e"), Value.NumberValue(5.0));
     _ = table.set(String.copy(&vm, "f"), Value.NumberValue(6.0));
     _ = table.set(String.copy(&vm, "g"), Value.NumberValue(7.0));
-    
+
     // after 6 entries, we reached 0.75 of capacity (8) so capacity doubled
     try expect(table.capacity == 16);
 
@@ -205,7 +205,7 @@ test "create a Table and add many antries until we adjustCapacity" {
     _ = table.set(String.copy(&vm, "k"), Value.NumberValue(2.0));
     _ = table.set(String.copy(&vm, "l"), Value.NumberValue(3.0));
     _ = table.set(String.copy(&vm, "m"), Value.NumberValue(4.0));
-    
+
     // after 12 entries, we reached 0.75 of capacity (16) so capacity doubled
     try expect(table.capacity == 32);
 }

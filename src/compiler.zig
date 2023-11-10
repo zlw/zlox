@@ -262,6 +262,18 @@ pub const Parser = struct {
         self.classCompiler = &classCompiler;
         defer self.classCompiler = self.classCompiler.?.enclosing;
 
+        if (self.match(TokenType.Less)) {
+            self.consume(TokenType.Identifier, "Expect superclass name");
+            self.variable(false);
+
+            if (self.identifiersEqual(className, &self.previous)) {
+                self.err("A class can't inherit from itself");
+            }
+
+            self.namedVariable(className, false);
+            self.emitOp(OpCode.op_inherit);
+        }
+
         self.namedVariable(className, false);
 
         self.consume(TokenType.LeftBrace, "Expect '{' before class body");

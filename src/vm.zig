@@ -212,6 +212,18 @@ pub const Vm = struct {
                     const class = Object.Class.create(self, className);
                     self.push(Value.ObjectValue(&class.object));
                 },
+                .op_inherit => {
+                    const superclass = self.peek(1);
+
+                    if (Object.isA(superclass, .Class)) {
+                        self.runtimeError("Superclass must be a class", .{});
+                        return InterpretError.RuntimeError;
+                    }
+
+                    const subclass = self.peek(0).object.asClass();
+                    superclass.object.asClass().methods.addAll(&subclass.methods);
+                    _ = self.pop(); // subclass
+                },
                 .op_get_property => {
                     if (!Object.isA(self.peek(0), .Instance)) {
                         self.runtimeError("Only instances have properties", .{});

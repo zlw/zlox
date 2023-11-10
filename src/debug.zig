@@ -69,6 +69,7 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) usize {
         .op_class => constantInstruction("OP_CLASS", chunk, offset),
         .op_get_property => constantInstruction("OP_GET_PROPERTY", chunk, offset),
         .op_set_property => constantInstruction("OP_SET_PROPERTY", chunk, offset),
+        .op_inherit => simpleInstruction("OP_INHERIT", offset),
         .op_method => constantInstruction("OP_METHOD", chunk, offset),
         .op_return => simpleInstruction("OP_RETURN", offset),
     };
