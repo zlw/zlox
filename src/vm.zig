@@ -224,6 +224,14 @@ pub const Vm = struct {
                     superclass.object.asClass().methods.addAll(&subclass.methods);
                     _ = self.pop(); // subclass
                 },
+                .op_get_super => {
+                    const name = self.readConstant().object.asString();
+                    const superclass = self.readConstant().object.asClass();
+
+                    if (!self.bindMethod(superclass, name)) {
+                        return InterpretError.RuntimeError;
+                    }
+                },
                 .op_get_property => {
                     if (!Object.isA(self.peek(0), .Instance)) {
                         self.runtimeError("Only instances have properties", .{});

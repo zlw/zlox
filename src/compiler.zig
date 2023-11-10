@@ -104,7 +104,7 @@ fn getRule(token_type: TokenType) ParseRule {
         .Or => comptime ParseRule.init(null, Parser.logical_or, Precedence.Or),
         .Print => comptime ParseRule.init(null, null, Precedence.None),
         .Return => comptime ParseRule.init(null, null, Precedence.None),
-        .Super => comptime ParseRule.init(null, null, Precedence.None),
+        .Super => comptime ParseRule.init(Parser.super, null, Precedence.None),
         .This => comptime ParseRule.init(Parser.this, null, Precedence.None),
         .True => comptime ParseRule.init(Parser.literal, null, Precedence.None),
         .Var => comptime ParseRule.init(null, null, Precedence.None),
@@ -549,6 +549,24 @@ pub const Parser = struct {
         _ = self;
         var token = Token { .lexeme = text, .line = 0, .token_type = TokenType.Identifier };
         return &token;
+    }
+
+    fn super(self: *Self, canAssign: bool) void {
+        _ = canAssign;
+
+        if (self.classCompiler == null) {
+            self.err("Can't use 'super' outside of a class");
+        } else if (!self.classCompiler.?.hasSuperclass) {
+            self.err("Can't use 'super' in a class with no superclass");
+        }
+
+        self.consume(TokenType.Dot, "Expect '.' after 'super'");
+        self.consume(TokenType.Identifier, "Expect superclass method name");
+        const name = self.identifierConstant(&self.previous);
+
+        self.namedVariable(self.syntheticToken("this"), false);
+        self.namedVariable(self.syntheticToken("super"), false);
+        self.emitOpAndByte(OpCode.op_get_super, name);
     }
 
     fn namedVariable(self: *Self, name: *Token, canAssign: bool) void {
