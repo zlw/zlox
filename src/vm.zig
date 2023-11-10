@@ -215,7 +215,7 @@ pub const Vm = struct {
                 .op_inherit => {
                     const superclass = self.peek(1);
 
-                    if (Object.isA(superclass, .Class)) {
+                    if (!Object.isA(superclass, .Class)) {
                         self.runtimeError("Superclass must be a class", .{});
                         return InterpretError.RuntimeError;
                     }
@@ -229,6 +229,15 @@ pub const Vm = struct {
                     const superclass = self.readConstant().object.asClass();
 
                     if (!self.bindMethod(superclass, name)) {
+                        return InterpretError.RuntimeError;
+                    }
+                },
+                .op_super_invoke => {
+                    const method = self.readConstant().object.asString();
+                    const argCount = self.readByte();
+                    const superclass = self.pop().object.asClass();
+
+                    if (!self.invokeFromClass(superclass, method, argCount)) {
                         return InterpretError.RuntimeError;
                     }
                 },

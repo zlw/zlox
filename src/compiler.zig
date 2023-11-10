@@ -253,7 +253,7 @@ pub const Parser = struct {
     fn classDeclaration(self: *Self) void {
         self.consume(TokenType.Identifier, "Expect class name");
         const className = &self.previous;
-        const nameConstant = self.identifierConstant(&self.previous);
+        const nameConstant = self.identifierConstant(className);
         self.declareVariable();
 
         self.emitOpAndByte(OpCode.op_class, nameConstant);
@@ -565,8 +565,16 @@ pub const Parser = struct {
         const name = self.identifierConstant(&self.previous);
 
         self.namedVariable(self.syntheticToken("this"), false);
-        self.namedVariable(self.syntheticToken("super"), false);
-        self.emitOpAndByte(OpCode.op_get_super, name);
+
+        if (self.match(TokenType.LeftParen)) {
+            const argCount = self.argumentList();
+            self.namedVariable(self.syntheticToken("super"), false);
+            self.emitOpAndByte(OpCode.op_super_invoke, name);
+            self.emitByte(argCount);
+        } else {
+            self.namedVariable(self.syntheticToken("super"), false);
+            self.emitOpAndByte(OpCode.op_get_super, name);
+        }
     }
 
     fn namedVariable(self: *Self, name: *Token, canAssign: bool) void {

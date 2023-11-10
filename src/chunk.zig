@@ -42,6 +42,7 @@ pub const OpCode = enum(u8) {
     op_class,
     op_inherit,
     op_get_super,
+    op_super_invoke,
     op_method,
     op_return,
 
