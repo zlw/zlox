@@ -252,8 +252,8 @@ pub const Parser = struct {
 
     fn classDeclaration(self: *Self) void {
         self.consume(TokenType.Identifier, "Expect class name");
-        const className = &self.previous;
-        const nameConstant = self.identifierConstant(className);
+        var className = self.previous;
+        const nameConstant = self.identifierConstant(&className);
         self.declareVariable();
 
         self.emitOpAndByte(OpCode.op_class, nameConstant);
@@ -267,7 +267,7 @@ pub const Parser = struct {
             self.consume(TokenType.Identifier, "Expect superclass name");
             self.variable(false);
 
-            if (self.identifiersEqual(className, &self.previous)) {
+            if (self.identifiersEqual(&className, &self.previous)) {
                 self.err("A class can't inherit from itself");
             }
 
@@ -275,12 +275,12 @@ pub const Parser = struct {
             self.addLocal(self.syntheticToken("super"));
             self.defineVariable(0);
 
-            self.namedVariable(className, false);
+            self.namedVariable(&className, false);
             self.emitOp(OpCode.op_inherit);
             classCompiler.hasSuperclass = true;
         }
 
-        self.namedVariable(className, false);
+        self.namedVariable(&className, false);
 
         self.consume(TokenType.LeftBrace, "Expect '{' before class body");
         while (!self.check(TokenType.RightBrace) and !self.check(TokenType.Eof)) {
