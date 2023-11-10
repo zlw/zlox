@@ -154,6 +154,7 @@ pub const Compiler = struct {
 
 pub const ClassCompiler = struct {
     enclosing: ?*ClassCompiler,
+    hasSuperclass: bool = false,
 };
 
 const Local = struct {
@@ -270,8 +271,13 @@ pub const Parser = struct {
                 self.err("A class can't inherit from itself");
             }
 
+            self.beginScope();
+            self.addLocal(self.syntheticToken("super"));
+            self.defineVariable(0);
+
             self.namedVariable(className, false);
             self.emitOp(OpCode.op_inherit);
+            classCompiler.hasSuperclass = true;
         }
 
         self.namedVariable(className, false);
@@ -281,6 +287,11 @@ pub const Parser = struct {
             self.methodDeclaration();
         }
         self.consume(TokenType.RightBrace, "Expect '}' after class body");
+
+        if (classCompiler.hasSuperclass) {
+            self.endScope();
+        }
+
         self.emitOp(OpCode.op_pop);
     }
 
@@ -532,6 +543,12 @@ pub const Parser = struct {
 
     fn variable(self: *Self, canAssign: bool) void {
         self.namedVariable(&self.previous, canAssign);
+    }
+
+    fn syntheticToken(self: *Self, text: []const u8) *Token {
+        _ = self;
+        var token = Token { .lexeme = text, .line = 0, .token_type = TokenType.Identifier };
+        return &token;
     }
 
     fn namedVariable(self: *Self, name: *Token, canAssign: bool) void {
