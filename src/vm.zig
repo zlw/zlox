@@ -226,7 +226,7 @@ pub const Vm = struct {
                 },
                 .op_get_super => {
                     const name = self.readConstant().object.asString();
-                    const superclass = self.readConstant().object.asClass();
+                    const superclass = self.pop().object.asClass();
 
                     if (!self.bindMethod(superclass, name)) {
                         return InterpretError.RuntimeError;
