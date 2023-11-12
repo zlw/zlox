@@ -253,7 +253,7 @@ pub const Parser = struct {
     fn classDeclaration(self: *Self) void {
         self.consume(TokenType.Identifier, "Expect class name");
         var className = self.previous;
-        const nameConstant = self.identifierConstant(&className);
+        const nameConstant = self.identifierConstant(className);
         self.declareVariable();
 
         self.emitOpAndByte(OpCode.op_class, nameConstant);
@@ -267,7 +267,7 @@ pub const Parser = struct {
             self.consume(TokenType.Identifier, "Expect superclass name");
             self.variable(false);
 
-            if (self.identifiersEqual(&className, &self.previous)) {
+            if (self.identifiersEqual(className, self.previous)) {
                 self.err("A class can't inherit from itself");
             }
 
@@ -275,12 +275,12 @@ pub const Parser = struct {
             self.addLocal(self.syntheticToken("super"));
             self.defineVariable(0);
 
-            self.namedVariable(&className, false);
+            self.namedVariable(className, false);
             self.emitOp(OpCode.op_inherit);
             classCompiler.hasSuperclass = true;
         }
 
-        self.namedVariable(&className, false);
+        self.namedVariable(className, false);
 
         self.consume(TokenType.LeftBrace, "Expect '{' before class body");
         while (!self.check(TokenType.RightBrace) and !self.check(TokenType.Eof)) {
@@ -297,7 +297,7 @@ pub const Parser = struct {
 
     fn methodDeclaration(self: *Self) void {
         self.consume(TokenType.Identifier, "Expect method name");
-        const constant = self.identifierConstant(&self.previous);
+        const constant = self.identifierConstant(self.previous);
         var functionType = FunctionType.Method;
 
         if (std.mem.eql(u8, self.previous.lexeme, "init")) {
@@ -542,13 +542,12 @@ pub const Parser = struct {
     }
 
     fn variable(self: *Self, canAssign: bool) void {
-        self.namedVariable(&self.previous, canAssign);
+        self.namedVariable(self.previous, canAssign);
     }
 
-    fn syntheticToken(self: *Self, text: []const u8) *Token {
+    fn syntheticToken(self: *Self, text: []const u8) Token {
         _ = self;
-        var token = Token { .lexeme = text, .line = 0, .token_type = TokenType.Identifier };
-        return &token;
+        return Token { .lexeme = text, .line = 0, .token_type = TokenType.Identifier };
     }
 
     fn super(self: *Self, canAssign: bool) void {
@@ -562,7 +561,7 @@ pub const Parser = struct {
 
         self.consume(TokenType.Dot, "Expect '.' after 'super'");
         self.consume(TokenType.Identifier, "Expect superclass method name");
-        const name = self.identifierConstant(&self.previous);
+        const name = self.identifierConstant(self.previous);
 
         self.namedVariable(self.syntheticToken("this"), false);
 
@@ -577,7 +576,7 @@ pub const Parser = struct {
         }
     }
 
-    fn namedVariable(self: *Self, name: *Token, canAssign: bool) void {
+    fn namedVariable(self: *Self, name: Token, canAssign: bool) void {
         var getOp: OpCode = undefined;
         var setOp: OpCode = undefined;
         var arg: u8 = undefined;
@@ -607,12 +606,12 @@ pub const Parser = struct {
         }
     }
 
-    fn resolveLocal(self: *Self, compiler: *Compiler, name: *Token) ?u8 {
+    fn resolveLocal(self: *Self, compiler: *Compiler, name: Token) ?u8 {
         var i: isize = compiler.localCount - 1;
         while (i >= 0) : (i -= 1) {
             const local = &compiler.locals[@as(u8, @intCast(i))];
 
-            if (self.identifiersEqual(name, &local.name)) {
+            if (self.identifiersEqual(name, local.name)) {
                 if (local.depth == null) {
                     self.err("Can't read local variable in its own initializer");
                 }
@@ -624,7 +623,7 @@ pub const Parser = struct {
         return null;
     }
 
-    fn resolveUpvalue(self: *Self, compiler: *Compiler, name: *Token) ?u8 {
+    fn resolveUpvalue(self: *Self, compiler: *Compiler, name: Token) ?u8 {
         if (compiler.enclosing == null) return null;
 
         const local = self.resolveLocal(compiler.enclosing.?, name);
@@ -711,7 +710,7 @@ pub const Parser = struct {
 
     fn dot(self: *Self, canAssign: bool) void {
         self.consume(TokenType.Identifier, "Expect property name after '.'");
-        const name = self.identifierConstant(&self.previous);
+        const name = self.identifierConstant(self.previous);
 
         if (canAssign and self.match(TokenType.Equal)) {
             self.expression();
@@ -794,7 +793,7 @@ pub const Parser = struct {
         }
     }
 
-    fn identifierConstant(self: *Self, name: *Token) u8 {
+    fn identifierConstant(self: *Self, name: Token) u8 {
         const identifier = Object.String.copy(self.vm, name.lexeme);
         return self.makeConstant(Value.ObjectValue(&identifier.object));
     }
@@ -805,7 +804,7 @@ pub const Parser = struct {
         self.declareVariable();
         if (self.compiler.scopeDepth > 0) return 0;
 
-        return self.identifierConstant(&self.previous);
+        return self.identifierConstant(self.previous);
     }
 
     fn defineVariable(self: *Self, global: u8) void {
@@ -848,7 +847,7 @@ pub const Parser = struct {
     fn declareVariable(self: *Self) void {
         if (self.compiler.scopeDepth == 0) return;
 
-        const name = &self.previous;
+        const name = self.previous;
 
         var i: isize = self.compiler.localCount - 1;
         while (i >= 0) : (i -= 1) {
@@ -856,7 +855,7 @@ pub const Parser = struct {
 
             if (local.depth != null and local.depth.? < self.compiler.scopeDepth) break;
 
-            if (self.identifiersEqual(name, &local.name)) {
+            if (self.identifiersEqual(name, local.name)) {
                 self.err("Already a variable with this name in this scope");
             }
         }
@@ -864,12 +863,12 @@ pub const Parser = struct {
         self.addLocal(name);
     }
 
-    fn identifiersEqual(self: *Self, a: *Token, b: *Token) bool {
+    fn identifiersEqual(self: *Self, a: Token, b: Token) bool {
         _ = self;
         return std.mem.eql(u8, a.lexeme, b.lexeme);
     }
 
-    fn addLocal(self: *Self, name: *Token) void {
+    fn addLocal(self: *Self, name: Token) void {
         if (self.compiler.localCount >= locals_max) {
             self.err("Too many local variables in function");
             return;
@@ -878,19 +877,19 @@ pub const Parser = struct {
         const local = &self.compiler.locals[self.compiler.localCount];
         self.compiler.localCount += 1;
 
-        local.name = name.*;
+        local.name = name;
         local.depth = null;
     }
 
     fn errAtCurrent(self: *Self, message: []const u8) void {
-        self.errAt(self.current, message);
+        self.errAt(&self.current, message);
     }
 
     fn err(self: *Self, message: []const u8) void {
-        self.errAt(self.previous, message);
+        self.errAt(&self.previous, message);
     }
 
-    fn errAt(self: *Self, token: Token, message: []const u8) void {
+    fn errAt(self: *Self, token: *Token, message: []const u8) void {
         if (self.panicMode) return;
         self.panicMode = true;
 
