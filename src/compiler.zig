@@ -916,7 +916,7 @@ pub const Parser = struct {
         };
 
         if (constant > std.math.maxInt(u8)) {
-            self.err("Too many constants in a chunk");
+            self.err("Too many constants in one chunk");
         }
 
         return @as(u8, @intCast(constant));
