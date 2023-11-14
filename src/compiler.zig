@@ -288,11 +288,11 @@ pub const Parser = struct {
         }
         self.consume(TokenType.RightBrace, "Expect '}' after class body");
 
+        self.emitOp(OpCode.op_pop);
+
         if (classCompiler.hasSuperclass) {
             self.endScope();
         }
-
-        self.emitOp(OpCode.op_pop);
     }
 
     fn methodDeclaration(self: *Self) void {
@@ -546,8 +546,7 @@ pub const Parser = struct {
     }
 
     fn syntheticToken(self: *Self, text: []const u8) Token {
-        _ = self;
-        return Token { .lexeme = text, .line = 0, .token_type = TokenType.Identifier };
+        return Token { .lexeme = text, .line = self.previous.line, .token_type = TokenType.Identifier };
     }
 
     fn super(self: *Self, canAssign: bool) void {
