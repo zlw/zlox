@@ -131,7 +131,7 @@ fn closureInstruction(name: []const u8, chunk: *Chunk, initialOffset: usize) usi
 fn invokeInstruction(name: []const u8, chunk: *Chunk, offset: usize) usize {
     const constant = chunk.code.items[offset + 1];
     const argCount = chunk.code.items[offset + 2];
-    std.debut.print("{s} ({d} args) {d} '", name, argCount, constant);
+    std.debug.print("{s} ({d} args) {d} '", .{name, argCount, constant});
 
     printValue(chunk.constants.items[constant]);
     std.debug.print("' \n", .{});
