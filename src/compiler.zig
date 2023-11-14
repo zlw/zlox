@@ -660,7 +660,7 @@ pub const Parser = struct {
         compiler.upvalues[upvalueCount].index = index;
 
         compiler.function.upvalueCount += 1;
-        return upvalueCount;
+        return @as(u8, @intCast(upvalueCount));
     }
 
     fn grouping(self: *Self, canAssign: bool) void {

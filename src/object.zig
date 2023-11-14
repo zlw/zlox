@@ -137,7 +137,7 @@ pub const Object = struct {
     pub const Function = struct {
         object: Object,
         arity: usize,
-        upvalueCount: u8,
+        upvalueCount: u16,
         chunk: Chunk,
         name: ?*String,
 
@@ -181,7 +181,7 @@ pub const Object = struct {
         object: Object,
         function: *Object.Function,
         upvalues: []*Upvalue,
-        upvalueCount: u8,
+        upvalueCount: u16,
 
         pub fn create(vm: *Vm, function: *Object.Function) *Closure {
             const closure = Object.create(vm, Closure, .Closure);
