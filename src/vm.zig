@@ -126,7 +126,19 @@ pub const Vm = struct {
                     }
                 },
                 .op_not => self.push(Value.BooleanValue(isFalsey(self.pop()))),
-                .op_add => self.binaryOp(.add),
+                .op_add => {
+                    if (Object.isA(self.peek(0), .String) and Object.isA(self.peek(1), .String)) {
+                        self.concatenate();
+                    } else if (self.peek(0).isA(.number) and self.peek(1).isA(.number)) {
+                        const rhs = self.pop().number;
+                        const lhs = self.pop().number;
+
+                        self.push(Value.NumberValue(lhs + rhs));
+                    } else {
+                        self.runtimeError("Operands must be two numbers or two strings", .{});
+                        return InterpretError.RuntimeError;
+                    }
+                },
                 .op_subtract => self.binaryOp(.sub),
                 .op_multiply => self.binaryOp(.mul),
                 .op_divide => self.binaryOp(.div),
@@ -311,7 +323,7 @@ pub const Vm = struct {
         return self.stack[self.stack_top - 1 - back];
     }
 
-    inline fn callValue(self: *Self, callee: Value, argCount: u8) bool {
+    fn callValue(self: *Self, callee: Value, argCount: u8) bool {
         switch (callee) {
             .object => |object| {
                 switch (object.objectType) {
@@ -378,7 +390,7 @@ pub const Vm = struct {
         }
     }
 
-    inline fn call(self: *Self, closure: *Object.Closure, argCount: u8) bool {
+    fn call(self: *Self, closure: *Object.Closure, argCount: u8) bool {
         const function = closure.function;
 
         if (function.arity != argCount) {
@@ -401,7 +413,7 @@ pub const Vm = struct {
         return true;
     }
 
-    inline fn callNative(self: *Self, function: *Object.NativeFunction, argCount: u8) bool {
+    fn callNative(self: *Self, function: *Object.NativeFunction, argCount: u8) bool {
         const args = self.stack[self.stack_top - argCount - 1];
         const result = function.function(args);
         self.stack_top -= argCount + 1;
@@ -410,7 +422,7 @@ pub const Vm = struct {
         return true;
     }
 
-    inline fn captureUpvalue(self: *Self, local: *Value) *Object.Upvalue {
+    fn captureUpvalue(self: *Self, local: *Value) *Object.Upvalue {
         var prevUpvalue: ?*Object.Upvalue = null;
         var maybeUpvalue = self.openUpvalues;
 
@@ -526,129 +538,52 @@ pub const Vm = struct {
     }
 
     inline fn binaryOp(self: *Self, op: BinaryOp) InterpretError!void {
-        const boxed_rhs = self.peek(0);
-        const boxed_lhs = self.peek(1);
-
-        switch (boxed_lhs) {
-            .boolean, .nil => {
-                _ = self.pop();
-                _ = self.pop();
-
-                self.runtimeError("Operands must be two numbers or two strings", .{});
-                return InterpretError.RuntimeError;
-            },
-            .number => |lhs| {
-                switch (boxed_rhs) {
-                    .boolean, .nil => {
-                        _ = self.pop();
-                        _ = self.pop();
-
-                        self.runtimeError("Operands must be two numbers or two strings", .{});
-                        return InterpretError.RuntimeError;
-                    },
-                    .object => {
-                        _ = self.pop();
-                        _ = self.pop();
-
-                        self.runtimeError("Operands must be numbers", .{});
-                        return InterpretError.RuntimeError;
-                    },
-                    .number => |rhs| {
-                        const result = switch (op) {
-                            .add => lhs + rhs,
-                            .sub => lhs - rhs,
-                            .mul => lhs * rhs,
-                            .div => lhs / rhs,
-                        };
-
-                        _ = self.pop();
-                        _ = self.pop();
-
-                        self.push(Value.NumberValue(result));
-                    },
-                }
-            },
-            .object => |lhs| {
-                switch (boxed_rhs) {
-                    .boolean, .nil => {
-                        _ = self.pop();
-                        _ = self.pop();
-
-                        self.runtimeError("Operands must be two numbers or two strings", .{});
-                        return InterpretError.RuntimeError;
-                    },
-                    .number => {
-                        _ = self.pop();
-                        _ = self.pop();
-
-                        self.runtimeError("Operands must be numbers", .{});
-                        return InterpretError.RuntimeError;
-                    },
-                    .object => |rhs| {
-                        switch (lhs.objectType) {
-                            .Function, .NativeFunction, .Closure, .Upvalue, .Class, .Instance, .BoundMethod => {
-                                _ = self.pop();
-                                _ = self.pop();
-
-                                self.runtimeError("Operands must be two numbers or two strings", .{});
-                                return InterpretError.RuntimeError;
-                            },
-                            .String => switch (rhs.objectType) {
-                                .Function, .NativeFunction, .Closure, .Upvalue, .Class, .Instance, .BoundMethod => {
-                                    _ = self.pop();
-                                    _ = self.pop();
-
-                                    self.runtimeError("Operands must be two numbers or two strings", .{});
-                                    return InterpretError.RuntimeError;
-                                },
-                                .String => {
-                                    switch (op) {
-                                        .add => {
-                                            const heap = std.mem.concat(self.allocator, u8, &[_][]const u8{ lhs.asString().chars, rhs.asString().chars }) catch unreachable;
-                                            const obj = Object.String.take(self, heap);
-
-                                            _ = self.pop();
-                                            _ = self.pop();
-
-                                            self.push(Value.ObjectValue(&obj.object));
-                                        },
-                                        else => unreachable,
-                                    }
-                                },
-                            },
-                        }
-                    },
-                }
-            },
+        if (!self.peek(0).isA(.number) or !self.peek(1).isA(.number)) {
+            self.runtimeError("Operands must be numbers", .{});
+            return InterpretError.RuntimeError;
         }
+
+        const rhs = self.pop().number;
+        const lhs = self.pop().number;
+
+        const result = switch(op) {
+            .add => lhs + rhs,
+            .sub => lhs - rhs,
+            .mul => lhs * rhs,
+            .div => lhs / rhs,
+        };
+
+        self.push(Value.NumberValue(result));
+    }
+
+    fn concatenate(self: *Self) void {
+        const rhs = self.peek(0).object.asString();
+        const lhs = self.peek(1).object.asString();
+
+        const heap = std.mem.concat(self.allocator, u8, &[_][]const u8{ lhs.chars, rhs.chars }) catch unreachable;
+        const obj = Object.String.take(self, heap);
+
+        _ = self.pop();
+        _ = self.pop();
+
+        self.push(Value.ObjectValue(&obj.object));
     }
 
     inline fn compOp(self: *Self, op: CompOp) InterpretError!void {
         const boxed_rhs = self.pop();
         const boxed_lhs = self.pop();
 
-        switch (boxed_lhs) {
-            .boolean, .nil, .object => {
-                self.runtimeError("Operands must be numbers", .{});
-                return InterpretError.RuntimeError;
-            },
-            .number => |lhs| {
-                switch (boxed_rhs) {
-                    .boolean, .nil, .object => {
-                        self.runtimeError("Operands must be numbers", .{});
-                        return InterpretError.RuntimeError;
-                    },
-                    .number => |rhs| {
-                        const result = switch (op) {
-                            .gt => lhs > rhs,
-                            .lt => lhs < rhs,
-                        };
-
-                        self.push(Value.BooleanValue(result));
-                    },
-                }
-            },
+        if (!boxed_lhs.isA(.number) or !boxed_rhs.isA(.number)) {
+            self.runtimeError("Operands must be numbers", .{});
+            return InterpretError.RuntimeError;
         }
+
+        const result = switch (op) {
+            .gt => boxed_lhs.number > boxed_rhs.number,
+            .lt => boxed_lhs.number < boxed_rhs.number,
+        };
+
+        self.push(Value.BooleanValue(result));
     }
 };
 

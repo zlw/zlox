@@ -43,7 +43,7 @@ pub const Table = struct {
         const entry = findEntry(self.entries, key);
         const isNew = entry.key == null;
 
-        if (isNew and entry.val.isNil()) {
+        if (isNew and entry.val.isA(.nil)) {
             self.count += 1;
         }
 
@@ -91,7 +91,7 @@ pub const Table = struct {
             const entry = &self.entries[index];
             if (entry.key == null) {
                 // Stop if we find an empty non-tombstone entry.
-                if (entry.val.isNil()) return null;
+                if (entry.val.isA(.nil)) return null;
             } else if (entry.key.?.chars.len == chars.len
                    and entry.key.?.hash == hash
                    and std.mem.eql(u8, entry.key.?.chars, chars)) {
@@ -112,7 +112,7 @@ pub const Table = struct {
             const entry = &entries[index];
 
             if (entry.key == null) {
-                if (entry.val.isNil()) {
+                if (entry.val.isA(.nil)) {
                     // not a tombstone
                     return tombstone orelse entry;
                 } else {

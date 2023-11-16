@@ -1,7 +1,14 @@
 const std = @import("std");
 const Object = @import("./object.zig").Object;
 
-pub const Value = union(enum) {
+pub const ValueType = enum {
+    nil,
+    boolean,
+    number,
+    object,
+};
+
+pub const Value = union(ValueType) {
     const Self = @This();
 
     nil,
@@ -27,6 +34,10 @@ pub const Value = union(enum) {
 
     pub inline fn isNil(self: Self) bool {
         return self == Value.nil;
+    }
+
+    pub inline fn isA(self: Self, valueType: ValueType) bool {
+        return @as(ValueType, self) == valueType;
     }
 
     pub fn equal(self: Self, other: Self) bool {
