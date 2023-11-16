@@ -85,8 +85,8 @@ pub const Table = struct {
 
     pub fn findString(self: *Self, chars: []const u8, hash: u32) ?*String {
         if (self.count == 0) return null;
+        var index = hash & (self.capacity - 1);
 
-        var index = hash % self.capacity;
         while (true) {
             const entry = &self.entries[index];
             if (entry.key == null) {
@@ -98,14 +98,13 @@ pub const Table = struct {
                 return entry.key;
             }
 
-            index += 1;
-            index %= self.capacity;
+            index = (index + 1) & (self.capacity - 1);
         }
     }
 
     fn findEntry(entries: []Entry, key: *String) *Entry {
         const capacity = entries.len;
-        var index = key.hash % capacity;
+        var index = key.hash & (capacity - 1);
         var tombstone: ?*Entry = null;
 
         while (true) {
@@ -123,8 +122,7 @@ pub const Table = struct {
                 return entry;
             }
 
-            index += 1;
-            index %= capacity;
+            index = (index + 1) & (capacity - 1);
         }
     }
 
