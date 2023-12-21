@@ -2,6 +2,7 @@
 
 const std = @import("std");
 const process = std.process;
+const builtin = @import("builtin");
 
 const allocator = std.heap.page_allocator;
 
@@ -33,7 +34,14 @@ pub fn main() !void {
 fn run_test(lox_path: []const u8, test_path: []const u8) !bool {
     std.debug.print("{s}\n", .{test_path});
     const argv = [_][]const u8{ lox_path, test_path };
-    const result = try std.ChildProcess.exec(.{ .allocator = allocator, .argv = argv[0..] });
+    const childProcess = if (comptime builtin.zig_version.minor == 12) std.ChildProcess.run else std.ChildProcess.exec;
+    // const result = if (builtin.zig_version.minor == 11) {
+    //     _ = try std.ChildProcess.exec(.{ .allocator = allocator, .argv = argv[0..] });
+    // } else if (builtin.zig_version.minor == 12) {
+    //     _ = try std.ChildProcess.run(.{ .allocator = allocator, .argv = argv[0..] });
+    // };
+
+    const result = try childProcess(.{ .allocator = allocator, .argv = argv[0..] });
     defer allocator.free(result.stdout);
     defer allocator.free(result.stderr);
 

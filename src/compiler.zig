@@ -252,7 +252,7 @@ pub const Parser = struct {
 
     fn classDeclaration(self: *Self) void {
         self.consume(TokenType.Identifier, "Expect class name");
-        var className = self.previous;
+        const className = self.previous;
         const nameConstant = self.identifierConstant(className);
         self.declareVariable();
 

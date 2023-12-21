@@ -25,7 +25,7 @@ pub fn main() anyerror!u8 {
         }
     }
 
-    var allocator = gpa.allocator();
+    const allocator = gpa.allocator();
 
     const args = try process.argsAlloc(allocator);
     defer process.argsFree(allocator, args);
@@ -53,7 +53,7 @@ fn repl(vm: *Vm) void {
 
     while (true) {
         stdout.writeAll("> ") catch std.debug.panic("Couldn't write to stdout you have serious problems", .{});
-        var line = reader.readUntilDelimiterOrEof(&line_buf, '\n') catch {
+        const line = reader.readUntilDelimiterOrEof(&line_buf, '\n') catch {
             std.debug.panic("Couldn't read from stdin in repl you have serious problems", .{});
         } orelse {
             stdout.writeAll("\n") catch std.debug.panic("Couldn't write to stdout you have serious problems", .{});

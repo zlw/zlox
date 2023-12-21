@@ -96,7 +96,7 @@ pub const Object = struct {
                 @panic("Error copying String\n");
             };
 
-            std.mem.copy(u8, heap, chars);
+            @memcpy(heap, chars);
 
             return allocate(vm, heap, hash);
         }
