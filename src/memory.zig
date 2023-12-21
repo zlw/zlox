@@ -21,16 +21,20 @@ const GrayObjects = DynamicArray(*Object);
 
 pub const GCAllocator = struct {
     parent_allocator: Allocator,
-    collector: ?GarbageCollector = null,
+    vm: *Vm,
+    grayObjects: GrayObjects,
+    bytesAllocated: usize = 0,
+    nextGC: usize = GC_DEFAULT_NEXT_GC,
 
     const Self = @This();
 
-    pub fn init(parent_allocator: Allocator) Self {
-        return .{ .parent_allocator = parent_allocator };
+    pub fn init(parent_allocator: Allocator, vm: *Vm) Self {
+        return .{ .parent_allocator = parent_allocator, .vm = vm, .grayObjects = GrayObjects.init(parent_allocator) };
     }
 
     pub fn deinit(self: *Self) void {
-        self.collector.?.deinit();
+        self.grayObjects.deinit();
+        self.freeObjects();
     }
 
     pub fn allocator(self: *Self) Allocator {
@@ -40,74 +44,56 @@ pub const GCAllocator = struct {
         };
     }
 
-    pub fn enableGC(self: *Self, vm: *Vm) void {
-        self.collector = GarbageCollector.init(vm, self.parent_allocator);
-    }
+    // begin: Allocator interface
 
     fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
-        self.collector.?.bytesAllocatedIncreased(len);
+        if ((self.bytesAllocated > self.nextGC)) {
+            try self.collectGarbage();
+        }
 
-        return self.parent_allocator.rawAlloc(len, ptr_align, ret_addr);
+        if (self.parent_allocator.rawAlloc(len, ptr_align, ret_addr)) |out| {
+            self.bytesAllocated += len;
+            return out;
+        } else {
+            return null;
+        }
     }
 
     fn resize(ctx: *anyopaque, buf: []u8, log2_buf_align: u8, new_len: usize, ret_addr: usize) bool {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
-        self.collector.?.bytesAllocatedIncreased(new_len - buf.len);
+        // if (new_len > buf.len) {
+        //     if ((self.bytesAllocated + (new_len - buf.len) > self.nextGC) or stress_gc) {
+        //         try self.collectGarbage();
+        //     }
+        // }
 
-        // in stress mode we call GC on every reallocation
-        // if (comptime stress_gc) if (new_len > buf.len) try self.collector.?.collectGarbage();
-
-        // if (self.collector.?.shouldCollect()) try self.collector.?.collectGarbage();
-
-        if (new_len > buf.len) {
-            // in stress mode we call GC on every reallocation
-            if (comptime stress_gc) try self.collector.?.collectGarbage();
-
-            if (self.collector.?.shouldCollect()) try self.collector.?.collectGarbage();
+        if ((self.bytesAllocated > self.nextGC)) {
+            try self.collectGarbage();
         }
 
-        return self.parent_allocator.rawResize(buf, log2_buf_align, new_len, ret_addr);
+       if (self.parent_allocator.rawResize(buf, log2_buf_align, new_len, ret_addr)) {
+            if (new_len > buf.len) {
+                self.bytesAllocated += new_len - buf.len;
+            } else {
+                self.bytesAllocated -= buf.len - new_len;
+            }
+            return true;
+        } else {
+            return false;
+        }
     }
 
     fn free(ctx: *anyopaque, buf: []u8, buf_align: u8, ret_addr: usize) void {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
-        self.collector.?.bytesAllocatedDecreased(buf.len);
-
-        return self.parent_allocator.rawFree(buf, buf_align, ret_addr);
-    }
-};
-
-pub const GarbageCollector = struct {
-    const Self = @This();
-
-    vm: *Vm,
-    grayObjects: GrayObjects,
-    bytesAllocated: usize = 0,
-    nextGC: usize = GC_DEFAULT_NEXT_GC,
-
-    pub fn init(vm: *Vm, allocator: Allocator) Self {
-        return .{ .vm = vm, .grayObjects = GrayObjects.init(allocator) };
+        self.parent_allocator.rawFree(buf, buf_align, ret_addr);
+        self.bytesAllocated -= buf.len;
     }
 
-    pub fn deinit(self: *Self) void {
-        self.grayObjects.deinit();
-    }
-
-    fn bytesAllocatedIncreased(self: *Self, size: usize) void {
-        self.bytesAllocated += size;
-    }
-
-    fn bytesAllocatedDecreased(self: *Self, size: usize) void {
-        self.bytesAllocated -= size;
-    }
-
-    fn shouldCollect(self: *Self) bool {
-        return self.bytesAllocated > self.nextGC;
-    }
+    // end: Allocator interface
 
     fn collectGarbage(self: *Self) !void {
         const before = self.bytesAllocated;

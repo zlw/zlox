@@ -8,7 +8,6 @@ const OpCode = @import("./chunk.zig").OpCode;
 const Vm = @import("./vm.zig").Vm;
 const InterpretError = @import("./vm.zig").InterpretError;
 
-const GCAllocator = @import("./memory.zig").GCAllocator;
 const debug_garbage_collection = @import("./debug.zig").debug_garbage_collection;
 
 const errout = std.io.getStdErr().writer();
@@ -31,12 +30,8 @@ pub fn main() anyerror!u8 {
     const args = try process.argsAlloc(allocator);
     defer process.argsFree(allocator, args);
 
-    var gc = GCAllocator.init(allocator);
-    defer gc.deinit();
-    var vm = Vm.init(gc.allocator());
+    var vm = Vm.init(allocator);
     defer vm.deinit();
-    gc.enableGC(&vm);
-    vm.enableGC(&gc.collector.?);
 
     switch (args.len) {
         1 => repl(&vm),
@@ -83,7 +78,7 @@ fn runFile(fileName: []const u8, vm: *Vm, allocator: Allocator) void {
 
 fn readFile(path: []const u8, allocator: Allocator) []const u8 {
     return std.fs.cwd().readFileAlloc(allocator, path, 1_000_000) catch |err| {
-        errout.print("Could not open file \"{s}\", error: {any}\n", .{path, err}) catch {};
+        errout.print("Could not open file \"{s}\", error: {any}\n", .{ path, err }) catch {};
         std.process.exit(74);
     };
 }

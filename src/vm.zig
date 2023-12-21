@@ -14,7 +14,7 @@ const compile = @import("./compiler.zig").compile;
 
 const native = @import("./native.zig");
 
-const GarbageCollector = @import("./memory.zig").GarbageCollector;
+const GCAllocator = @import("./memory.zig").GCAllocator;
 const Parser = @import("./compiler.zig").Parser;
 
 const debug_trace_execution = debug.debug_trace_execution;
@@ -51,13 +51,23 @@ pub const Vm = struct {
     objects: ?*Object = null,
     openUpvalues: ?*Object.Upvalue = null,
     allocator: Allocator,
-    collector: ?*GarbageCollector = null,
     parser: ?*Parser = null,
 
-    pub fn init(allocator: Allocator) Self {
-        var vm = Self{ .allocator = allocator, .strings = Table.init(allocator), .globals = Table.init(allocator) };
+    pub fn init(parent_allocator: Allocator) Self {
+        // var vm = Self{ .allocator = undefined, .strings = undefined, .globals = undefined };
+        // var gc = GCAllocator.init(parent_allocator, &vm);
+        // var allocator = gc.allocator();
+        // _ = allocator;
+
+        // vm.allocator = parent_allocator;
+        // vm.strings = Table.init(parent_allocator);
+        // vm.globals = Table.init(parent_allocator);
+
+        var vm = Self{ .allocator = parent_allocator, .strings = Table.init(parent_allocator), .globals = Table.init(parent_allocator) };
+
         vm.initString = Object.String.copy(&vm, "init");
         vm.defineNative("clock", native.clockNative);
+
         return vm;
     }
 
@@ -65,11 +75,25 @@ pub const Vm = struct {
         self.globals.deinit();
         self.strings.deinit();
         self.initString = null;
-        self.collector.?.freeObjects();
+        self.freeObjects();
     }
 
-    pub fn enableGC(self: *Self, collector: *GarbageCollector) void {
-        self.collector = collector;
+    fn freeObjects(self: *Self) void {
+        var obj = self.objects;
+        var total_objects: u64 = 0;
+
+        while (obj) |object| {
+            if (comptime debug_garbage_collection) {
+                total_objects += 1;
+            }
+            const next = object.next;
+            object.destroy(self);
+            obj = next;
+        }
+
+        if (comptime debug_garbage_collection) {
+            std.log.debug("GC: Objects freed: {d}", .{total_objects});
+        }
     }
 
     pub fn interpret(self: *Self, source: []const u8) InterpretError!void {
