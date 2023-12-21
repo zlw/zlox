@@ -911,15 +911,13 @@ pub const Parser = struct {
     }
 
     fn makeConstant(self: *Self, value: Value) u8 {
-        const constant = self.currentChunk().addConstant(value) catch {
-            self.err("Err adding constant");
-        };
+        const constant = self.currentChunk().addConstant(value);
 
         if (constant > std.math.maxInt(u8)) {
             self.err("Too many constants in one chunk");
         }
 
-        return @as(u8, @intCast(constant));
+        return @as(u8, @truncate(constant));
     }
 
     fn emitOp(self: *Self, code: OpCode) void {

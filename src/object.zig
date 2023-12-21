@@ -136,8 +136,8 @@ pub const Object = struct {
 
     pub const Function = struct {
         object: Object,
-        arity: usize,
-        upvalueCount: u16,
+        arity: u9,
+        upvalueCount: u9,
         chunk: Chunk,
         name: ?*String,
 

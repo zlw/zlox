@@ -87,14 +87,15 @@ pub const Chunk = struct {
         self.lines.appendItem(line);
     }
 
-    pub fn addConstant(self: *Self, value: Value) !u16 {
+    pub fn addConstant(self: *Self, value: Value) u9 {
+        const idx: u9 = @truncate(self.constants.count);
         self.vm.push(value);
 
         self.constants.appendItem(value);
 
         _ = self.vm.pop();
 
-        return @as(u16, @intCast(self.constants.count - 1));
+        return idx;
     }
 };
 
