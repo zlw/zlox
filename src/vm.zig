@@ -10,12 +10,9 @@ const printValue = @import("./value.zig").printValue;
 
 const Table = @import("./table.zig").Table;
 
-const compile = @import("./compiler.zig").compile;
-
 const native = @import("./native.zig");
 
 const GCAllocator = @import("./memory.zig").GCAllocator;
-const Parser = @import("./compiler.zig").Parser;
 
 const debug_trace_execution = debug.debug_trace_execution;
 const debug_stack_execution = debug.debug_stack_execution;
@@ -25,7 +22,6 @@ const frames_max = 64;
 const stack_max = frames_max * std.math.maxInt(u8);
 
 pub const InterpretError = error{
-    CompileError,
     RuntimeError,
 };
 
@@ -51,7 +47,6 @@ pub const Vm = struct {
     objects: ?*Object = null,
     openUpvalues: ?*Object.Upvalue = null,
     allocator: Allocator,
-    parser: ?*Parser = null,
 
     pub fn init(parent_allocator: Allocator) Self {
         // var vm = Self{ .allocator = undefined, .strings = undefined, .globals = undefined };
@@ -96,8 +91,7 @@ pub const Vm = struct {
         }
     }
 
-    pub fn interpret(self: *Self, source: []const u8) InterpretError!void {
-        const function = compile(self, source) catch return InterpretError.CompileError;
+    pub fn interpret(self: *Self, function: *Object.Function) InterpretError!void {
         self.push(Value.ObjectValue(&function.object));
         const closure = Object.Closure.create(self, function);
         _ = self.pop();
