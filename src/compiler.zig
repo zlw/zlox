@@ -8,8 +8,6 @@ const Value = @import("./value.zig").Value;
 const Object = @import("./object.zig").Object;
 const Vm = @import("./vm.zig").Vm;
 
-const errout = std.io.getStdErr().writer();
-
 const debug = @import("./debug.zig");
 const debug_rule_selection = debug.debug_rule_selection;
 const debug_print_code = debug.debug_print_code;
@@ -318,7 +316,7 @@ pub const Parser = struct {
     fn compileFunction(self: *Self, functionType: FunctionType) void {
         var functionCompiler = Compiler.init(self.vm, functionType, self.compiler);
         // book does this in initCompiler which is our Compiler.init,
-        // but I don't see a reason why if we're setting function.arity here, we can as well set it's name
+        // but I don't see a reason why if we're setting function.arity here, we can as well set its name
         // that way we don't need to make Compiler depend on the Parser which would create bi-directional dependency
         functionCompiler.function.name = Object.String.copy(self.vm, self.previous.lexeme);
         self.compiler = &functionCompiler;
@@ -891,6 +889,8 @@ pub const Parser = struct {
     fn errAt(self: *Self, token: *Token, message: []const u8) void {
         if (self.panicMode) return;
         self.panicMode = true;
+
+        const errout = std.io.getStdErr().writer();
 
         errout.print("[line {d}] Error", .{token.line}) catch unreachable;
 
