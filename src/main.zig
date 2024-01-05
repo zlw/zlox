@@ -10,10 +10,6 @@ const InterpretError = @import("./vm.zig").InterpretError;
 
 const debug_garbage_collection = @import("./debug.zig").debug_garbage_collection;
 
-const errout = std.io.getStdErr().writer();
-const stdout = std.io.getStdOut().writer();
-const stdin = std.io.getStdIn().reader();
-
 pub fn main() anyerror!u8 {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -47,6 +43,9 @@ pub fn main() anyerror!u8 {
 }
 
 fn repl(vm: *Vm) void {
+    const stdout = std.io.getStdOut().writer();
+    const stdin = std.io.getStdIn().reader();
+
     var buf = std.io.bufferedReader(stdin);
     var reader = buf.reader();
     var line_buf: [1024]u8 = undefined;
@@ -77,6 +76,7 @@ fn runFile(fileName: []const u8, vm: *Vm, allocator: Allocator) void {
 }
 
 fn readFile(path: []const u8, allocator: Allocator) []const u8 {
+    const errout = std.io.getStdErr().writer();
     return std.fs.cwd().readFileAlloc(allocator, path, 1_000_000) catch |err| {
         errout.print("Could not open file \"{s}\", error: {any}\n", .{ path, err }) catch {};
         std.process.exit(74);
