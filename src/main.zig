@@ -7,6 +7,8 @@ const Chunk = @import("./chunk.zig").Chunk;
 const OpCode = @import("./chunk.zig").OpCode;
 const Vm = @import("./vm.zig").Vm;
 const InterpretError = @import("./vm.zig").InterpretError;
+const CompileError = @import("./compiler.zig").CompileError;
+const compile = @import("./compiler.zig").compile;
 
 const debug_garbage_collection = @import("./debug.zig").debug_garbage_collection;
 
@@ -60,7 +62,8 @@ fn repl(vm: *Vm) void {
             break;
         };
 
-        vm.interpret(line) catch {};
+        const function = compile(vm, line) catch std.debug.panic("Couldn't compile", .{});
+        vm.interpret(function) catch {};
     }
 }
 
@@ -68,11 +71,11 @@ fn runFile(fileName: []const u8, vm: *Vm, allocator: Allocator) void {
     const source = readFile(fileName, allocator);
     defer allocator.free(source);
 
-    vm.interpret(source) catch |e| {
-        switch (e) {
-            InterpretError.RuntimeError => std.process.exit(70),
-            InterpretError.CompileError => std.process.exit(65),
-        }
+    const function = compile(vm, source) catch {
+        std.process.exit(65);
+    };
+    vm.interpret(function) catch {
+        std.process.exit(70);
     };
 }
 

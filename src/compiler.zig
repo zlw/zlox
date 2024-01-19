@@ -16,13 +16,12 @@ const debug_print_code = debug.debug_print_code;
 const locals_max = std.math.maxInt(u8) + 1;
 const upvalues_max = std.math.maxInt(u8) + 1;
 
-const CompileError = error{ CompileError, TooManyConstants };
+pub const CompileError = error{ CompileError, TooManyConstants };
 
 pub fn compile(vm: *Vm, source: []const u8) CompileError!*Object.Function {
     var scanner = Scanner.init(source);
     var compiler = Compiler.init(vm, FunctionType.Script, null);
     var parser = Parser.init(vm, &scanner, &compiler);
-    vm.parser = &parser;
 
     parser.advance();
 
