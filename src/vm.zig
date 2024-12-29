@@ -66,6 +66,7 @@ pub const Vm = struct {
         self.strings.deinit();
         self.initString = null;
         self.collector.?.freeObjects();
+        self.collector.?.deinit();
     }
 
     pub fn enableGC(self: *Self, collector: *GarbageCollector) void {
@@ -376,7 +377,7 @@ pub const Vm = struct {
         if (instance.fields.get(name)) |value| {
             self.stack[self.stack_top - argCount - 1] = value.*;
             return self.callValue(value.*, argCount);
-         }
+        }
 
         return self.invokeFromClass(instance.class, name, argCount);
     }
@@ -546,7 +547,7 @@ pub const Vm = struct {
         const rhs = self.pop().number;
         const lhs = self.pop().number;
 
-        const result = switch(op) {
+        const result = switch (op) {
             .add => lhs + rhs,
             .sub => lhs - rhs,
             .mul => lhs * rhs,

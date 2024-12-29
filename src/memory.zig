@@ -14,8 +14,7 @@ const debug_gc = @import("./debug.zig").debug_garbage_collection;
 const stress_gc = false;
 
 const GC_HEAP_GROW_FACTOR = 2;
-// Investigate why smaller heap breaks ./test/limit/loop_too_large.lox
-const GC_DEFAULT_NEXT_GC = (1024 * 1024) * 2;
+const GC_DEFAULT_NEXT_GC = 1024 * 1024;
 
 const GrayObjects = DynamicArray(*Object);
 
@@ -47,7 +46,11 @@ pub const GCAllocator = struct {
     fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
-        self.collector.?.bytesAllocatedIncreased(len);
+        if (self.collector) |collector| {
+            var gc = collector;
+            gc.bytesAllocatedIncreased(len);
+            if (gc.shouldCollect() or stress_gc) try gc.collectGarbage();
+        }
 
         return self.parent_allocator.rawAlloc(len, ptr_align, ret_addr);
     }
@@ -55,18 +58,15 @@ pub const GCAllocator = struct {
     fn resize(ctx: *anyopaque, buf: []u8, log2_buf_align: u8, new_len: usize, ret_addr: usize) bool {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
-        self.collector.?.bytesAllocatedIncreased(new_len - buf.len);
+        if (self.collector) |collector| {
+            var gc = collector;
+            if (new_len > buf.len) {
+                gc.bytesAllocatedIncreased(new_len - buf.len);
+            } else {
+                gc.bytesAllocatedDecreased(buf.len - new_len);
+            }
 
-        // in stress mode we call GC on every reallocation
-        // if (comptime stress_gc) if (new_len > buf.len) try self.collector.?.collectGarbage();
-
-        // if (self.collector.?.shouldCollect()) try self.collector.?.collectGarbage();
-
-        if (new_len > buf.len) {
-            // in stress mode we call GC on every reallocation
-            if (comptime stress_gc) try self.collector.?.collectGarbage();
-
-            if (self.collector.?.shouldCollect()) try self.collector.?.collectGarbage();
+            if (gc.shouldCollect() or stress_gc) try gc.collectGarbage();
         }
 
         return self.parent_allocator.rawResize(buf, log2_buf_align, new_len, ret_addr);
@@ -75,7 +75,10 @@ pub const GCAllocator = struct {
     fn free(ctx: *anyopaque, buf: []u8, buf_align: u8, ret_addr: usize) void {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
-        self.collector.?.bytesAllocatedDecreased(buf.len);
+        if (self.collector) |collector| {
+            var gc = collector;
+            gc.bytesAllocatedDecreased(buf.len);
+        }
 
         return self.parent_allocator.rawFree(buf, buf_align, ret_addr);
     }
@@ -102,6 +105,7 @@ pub const GarbageCollector = struct {
     }
 
     fn bytesAllocatedDecreased(self: *Self, size: usize) void {
+        if (self.bytesAllocated == 0) return;
         self.bytesAllocated -= size;
     }
 
