@@ -24,3 +24,10 @@ system: release
 
 repl: build
 	./zig-out/bin/zlox
+
+run: build
+	./zig-out/bin/zlox $(path)
+
+bench: release
+	./zig-out/bin/zlox $(path)
+	../craftinginterpreters/clox $(path)
