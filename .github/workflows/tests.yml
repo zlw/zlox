@@ -2,31 +2,29 @@ name: Test
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
 
-    - name: Checkout
-      uses: actions/checkout@v3
+      - name: Setup Zig
+        # You may pin to the exact commit or the version.
+        # uses: goto-bus-stop/setup-zig@6fede2f0550d71291c0accf2834b216e69a2d67a
+        uses: goto-bus-stop/setup-zig@v2.1.1
+        with:
+          version: 0.13.0 # Version of the zig compiler to use (must be 0.3.0 or up)
+          cache: true # Cache downloaded compiler
 
-    - name: Setup Zig
-      # You may pin to the exact commit or the version.
-      # uses: goto-bus-stop/setup-zig@6fede2f0550d71291c0accf2834b216e69a2d67a
-      uses: goto-bus-stop/setup-zig@v2.1.1
-      with:
-        version: 0.11.0 # Version of the zig compiler to use (must be 0.3.0 or up)
-        cache: true # Cache downloaded compiler
+      # Do we need unit tests when all system tests are passing?
+      # - name: Run unit tests
+      #   run: make unit
 
-    # Do we need unit tests when all system tests are passing?
-    # - name: Run unit tests
-    #   run: make unit
-
-    - name: Run system tests
-      run: make system path=test
+      - name: Run system tests
+        run: make system path=test
