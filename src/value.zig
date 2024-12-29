@@ -36,8 +36,8 @@ pub const Value = union(ValueType) {
         return self == Value.nil;
     }
 
-    pub inline fn isA(self: Self, valueType: ValueType) bool {
-        return @as(ValueType, self) == valueType;
+    pub inline fn isNumber(self: Self) bool {
+        return self == .number;
     }
 
     pub fn equal(self: Self, other: Self) bool {

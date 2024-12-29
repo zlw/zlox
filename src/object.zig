@@ -283,7 +283,7 @@ fn hashBytes(bytes: []const u8) u32 {
 
     for (bytes) |byte| {
         hash ^= byte;
-        hash *%= 16777619;
+        _ = @mulWithOverflow(hash, 16777619);
     }
 
     return hash;

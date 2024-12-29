@@ -33,8 +33,8 @@ pub const Table = struct {
     }
 
     pub fn set(self: *Self, key: *String, val: Value) bool {
-        const new_size = @as(f64, @floatFromInt(self.count + 1));
-        const needed_capacity = @as(f64, @floatFromInt(self.entries.len)) * max_load;
+        const new_size = 4 * (self.count + 1);
+        const needed_capacity = 3 * self.entries.len;
         if (new_size > needed_capacity) {
             const new_capacity = growCapacity(self.capacity);
             self.adjustCapacity(new_capacity);
@@ -43,7 +43,7 @@ pub const Table = struct {
         const entry = findEntry(self.entries, key);
         const isNew = entry.key == null;
 
-        if (isNew and entry.val.isA(.nil)) {
+        if (isNew and entry.val.isNil()) {
             self.count += 1;
         }
 
@@ -91,10 +91,8 @@ pub const Table = struct {
             const entry = &self.entries[index];
             if (entry.key == null) {
                 // Stop if we find an empty non-tombstone entry.
-                if (entry.val.isA(.nil)) return null;
-            } else if (entry.key.?.chars.len == chars.len
-                   and entry.key.?.hash == hash
-                   and std.mem.eql(u8, entry.key.?.chars, chars)) {
+                if (entry.val.isNil()) return null;
+            } else if (entry.key.?.chars.len == chars.len and entry.key.?.hash == hash and std.mem.eql(u8, entry.key.?.chars, chars)) {
                 return entry.key;
             }
 
@@ -111,10 +109,10 @@ pub const Table = struct {
             const entry = &entries[index];
 
             if (entry.key == null) {
-                if (entry.val.isA(.nil)) {
+                if (entry.val.isNil()) {
                     // not a tombstone
                     return tombstone orelse entry;
-                } else {
+                } else if (tombstone == null) {
                     tombstone = entry;
                     return entry;
                 }

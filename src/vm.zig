@@ -131,7 +131,7 @@ pub const Vm = struct {
                 .op_add => {
                     if (Object.isA(self.peek(0), .String) and Object.isA(self.peek(1), .String)) {
                         self.concatenate();
-                    } else if (self.peek(0).isA(.number) and self.peek(1).isA(.number)) {
+                    } else if (self.peek(0).isNumber() and self.peek(1).isNumber()) {
                         const rhs = self.pop().number;
                         const lhs = self.pop().number;
 
@@ -321,7 +321,7 @@ pub const Vm = struct {
         self.stack_top += 1;
     }
 
-    fn peek(self: *Self, back: usize) Value {
+    inline fn peek(self: *Self, back: usize) Value {
         return (self.stack_top - 1 - back)[0];
     }
 
@@ -539,7 +539,7 @@ pub const Vm = struct {
     }
 
     inline fn binaryOp(self: *Self, op: BinaryOp) InterpretError!void {
-        if (!self.peek(0).isA(.number) or !self.peek(1).isA(.number)) {
+        if (!self.peek(0).isNumber() or !self.peek(1).isNumber()) {
             self.runtimeError("Operands must be numbers", .{});
             return InterpretError.RuntimeError;
         }
@@ -574,7 +574,7 @@ pub const Vm = struct {
         const boxed_rhs = self.pop();
         const boxed_lhs = self.pop();
 
-        if (!boxed_lhs.isA(.number) or !boxed_rhs.isA(.number)) {
+        if (!boxed_lhs.isNumber() or !boxed_rhs.isNumber()) {
             self.runtimeError("Operands must be numbers", .{});
             return InterpretError.RuntimeError;
         }
