@@ -158,7 +158,7 @@ pub const Vm = struct {
                         return InterpretError.RuntimeError;
                     };
 
-                    self.push(value.*);
+                    self.push(value);
                 },
                 .op_set_global => {
                     const name = self.readConstant().object.asString();
@@ -266,7 +266,7 @@ pub const Vm = struct {
 
                     if (instance.fields.get(name)) |value| {
                         _ = self.pop();
-                        self.push(value.*);
+                        self.push(value);
                     } else if (!self.bindMethod(instance.class, name)) {
                         return InterpretError.RuntimeError;
                     }
@@ -375,8 +375,8 @@ pub const Vm = struct {
         const instance = receiver.object.asInstance();
 
         if (instance.fields.get(name)) |value| {
-            (self.stack_top - argCount - 1)[0] = value.*;
-            return self.callValue(value.*, argCount);
+            (self.stack_top - argCount - 1)[0] = value;
+            return self.callValue(value, argCount);
         }
 
         return self.invokeFromClass(instance.class, name, argCount);

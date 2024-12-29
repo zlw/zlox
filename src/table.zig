@@ -53,14 +53,14 @@ pub const Table = struct {
         return isNew;
     }
 
-    pub fn get(self: *Self, key: *String) ?*Value {
+    pub fn get(self: *Self, key: *String) ?Value {
         if (self.count == 0) return null;
 
         const entry = findEntry(self.entries, key);
 
         if (entry.key == null) return null;
 
-        return &entry.val;
+        return entry.val;
     }
 
     pub fn delete(self: *Self, key: *String) bool {
