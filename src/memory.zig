@@ -28,10 +28,6 @@ pub const GCAllocator = struct {
         return .{ .parent_allocator = parent_allocator };
     }
 
-    pub fn deinit(self: *Self) void {
-        self.collector.?.deinit();
-    }
-
     pub fn allocator(self: *Self) Allocator {
         return .{
             .ptr = self,

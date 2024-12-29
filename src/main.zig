@@ -32,7 +32,6 @@ pub fn main() anyerror!u8 {
     defer process.argsFree(allocator, args);
 
     var gc = GCAllocator.init(allocator);
-    defer gc.deinit();
     var vm = Vm.init(gc.allocator());
     defer vm.deinit();
     gc.enableGC(&vm);
