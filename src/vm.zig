@@ -34,7 +34,7 @@ const CompOp = enum { gt, lt };
 
 const CallFrame = struct {
     closure: *Object.Closure,
-    ip: usize = 0,
+    ip: [*]u8 = 0,
     slots: [*]Value,
 };
 
@@ -408,7 +408,7 @@ pub const Vm = struct {
         self.framesCount += 1;
 
         frame.closure = closure;
-        frame.ip = 0;
+        frame.ip = closure.function.chunk.code.items.ptr;
         frame.slots = self.stack_top - argCount - 1;
 
         return true;
@@ -469,16 +469,16 @@ pub const Vm = struct {
     }
 
     inline fn readByte(self: *Self) u8 {
-        const byte = self.currentChunk().code.items[self.currentFrame().ip];
-        self.currentFrame().ip += 1;
+        const frame = self.currentFrame();
+        const byte = frame.ip[0];
+        frame.ip += 1;
         return byte;
     }
 
     inline fn readTwoBytes(self: *Self) u16 {
-        const b1 = @as(u16, self.currentChunk().code.items[self.currentFrame().ip]);
-        const b2 = self.currentChunk().code.items[self.currentFrame().ip + 1];
-        self.currentFrame().ip += 2;
-        return (b1 << 8) | b2;
+        const b1 = self.readByte();
+        const b2 = self.readByte();
+        return (@as(u16, @intCast(b1)) << 8) | @as(u16, @intCast(b2));
     }
 
     inline fn readConstant(self: *Self) Value {
@@ -499,7 +499,7 @@ pub const Vm = struct {
 
             const frame = &self.frames[i];
             const function = frame.closure.function;
-            const instruction = frame.ip - 1;
+            const instruction = @intFromPtr(frame.ip) - @intFromPtr(frame.closure.function.chunk.code.items.ptr) - 1;
 
             err_writer.print("[line {d}] in ", .{function.chunk.lines.items[instruction]}) catch {};
             const name = if (function.name) |name| name.chars else "script";
