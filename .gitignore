@@ -1,5 +1,6 @@
 .vscode
 .idea
 /zig-cache
+/.zig-cache
 /zig-out
 /src/zig-cache

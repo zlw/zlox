@@ -4,6 +4,7 @@ clean:
 	rm -rf build/*
 	rm -rf zig-out/*
 	rm -rf zig-cache
+	rm -rf .zig-cache
 	rm -rf src/zig-cache
 
 build:

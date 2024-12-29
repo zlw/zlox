@@ -45,35 +45,35 @@ pub const Object = struct {
     }
 
     pub inline fn asString(self: *Object) *String {
-        return @fieldParentPtr(String, "object", self);
+        return @fieldParentPtr("object", self);
     }
 
     pub inline fn asFunction(self: *Object) *Function {
-        return @fieldParentPtr(Function, "object", self);
+        return @fieldParentPtr("object", self);
     }
 
     pub inline fn asNativeFunction(self: *Object) *NativeFunction {
-        return @fieldParentPtr(NativeFunction, "object", self);
+        return @fieldParentPtr("object", self);
     }
 
     pub inline fn asClosure(self: *Object) *Closure {
-        return @fieldParentPtr(Closure, "object", self);
+        return @fieldParentPtr("object", self);
     }
 
     pub inline fn asUpvalue(self: *Object) *Upvalue {
-        return @fieldParentPtr(Upvalue, "object", self);
+        return @fieldParentPtr("object", self);
     }
 
     pub inline fn asClass(self: *Object) *Class {
-        return @fieldParentPtr(Class, "object", self);
+        return @fieldParentPtr("object", self);
     }
 
     pub inline fn asInstance(self: *Object) *Instance {
-        return @fieldParentPtr(Instance, "object", self);
+        return @fieldParentPtr("object", self);
     }
 
     pub inline fn asBoundMethod(self: *Object) *BoundMethod {
-        return @fieldParentPtr(BoundMethod, "object", self);
+        return @fieldParentPtr("object", self);
     }
 
     pub inline fn isA(value: Value, objectType: ObjectType) bool {
@@ -96,7 +96,7 @@ pub const Object = struct {
                 @panic("Error copying String\n");
             };
 
-            std.mem.copy(u8, heap, chars);
+            @memcpy(heap, chars);
 
             return allocate(vm, heap, hash);
         }
