@@ -133,9 +133,9 @@ pub const GarbageCollector = struct {
         var i: usize = undefined;
 
         // mark Object in Values sitting on the stack
-        i = 0;
-        while (i < self.vm.stack_top) : (i += 1) {
-            self.markValue(&self.vm.stack[i]);
+        var slot = @as([*]Value, @ptrCast(&self.vm.stack[0]));
+        while (@intFromPtr(slot) < @intFromPtr(self.vm.stack_top)) : (slot += 1) {
+            self.markValue(&slot[0]);
         }
 
         // mark Object.Closure in CallFrames

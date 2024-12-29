@@ -35,7 +35,7 @@ const CompOp = enum { gt, lt };
 const CallFrame = struct {
     closure: *Object.Closure,
     ip: usize = 0,
-    slots: usize = 0,
+    slots: [*]Value,
 };
 
 pub const Vm = struct {
@@ -44,7 +44,7 @@ pub const Vm = struct {
     frames: [frames_max]CallFrame = undefined,
     framesCount: usize = 0,
     stack: [stack_max]Value = undefined,
-    stack_top: usize = 0,
+    stack_top: [*]Value = undefined,
     strings: Table,
     initString: ?*Object.String = null,
     globals: Table,
@@ -56,6 +56,7 @@ pub const Vm = struct {
 
     pub fn init(allocator: Allocator) Self {
         var vm = Self{ .allocator = allocator, .strings = Table.init(allocator), .globals = Table.init(allocator) };
+        vm.stack_top = vm.stack[0..];
         vm.initString = Object.String.copy(&vm, "init");
         vm.defineNative("clock", native.clockNative);
         return vm;
@@ -169,11 +170,11 @@ pub const Vm = struct {
                 },
                 .op_get_local => {
                     const slot = self.readByte();
-                    self.push(self.stack[self.currentFrame().slots + slot]);
+                    self.push(self.currentFrame().slots[slot]);
                 },
                 .op_set_local => {
                     const slot = self.readByte();
-                    self.stack[self.currentFrame().slots + slot] = self.peek(0);
+                    self.currentFrame().slots[slot] = self.peek(0);
                 },
                 .op_get_upvalue => {
                     const slot = self.readByte();
@@ -184,7 +185,7 @@ pub const Vm = struct {
                     self.currentFrame().closure.upvalues[slot].location.* = self.peek(0);
                 },
                 .op_close_upvalue => {
-                    self.closeUpvalue(&self.stack[self.stack_top - 1]);
+                    self.closeUpvalue(self.stack_top - 1);
                     _ = self.pop();
                 },
                 .op_jump => {
@@ -214,7 +215,7 @@ pub const Vm = struct {
                         const index = self.readByte();
 
                         if (isLocal) {
-                            closure.upvalues[i] = self.captureUpvalue(&self.stack[self.currentFrame().slots + index]);
+                            closure.upvalues[i] = self.captureUpvalue(&self.currentFrame().slots[index]);
                         } else {
                             closure.upvalues[i] = self.currentFrame().closure.upvalues[index];
                         }
@@ -297,7 +298,7 @@ pub const Vm = struct {
                 .op_return => {
                     const result = self.pop();
                     const frame = self.currentFrame();
-                    self.closeUpvalue(&self.stack[frame.slots]);
+                    self.closeUpvalue(frame.slots);
                     self.framesCount -= 1;
 
                     if (self.framesCount == 0) return;
@@ -310,32 +311,31 @@ pub const Vm = struct {
     }
 
     fn resetStack(self: *Self) void {
-        self.stack_top = 0;
+        self.stack_top = self.stack[0..];
         self.framesCount = 0;
         self.openUpvalues = null;
     }
 
     pub inline fn push(self: *Self, value: Value) void {
-        self.stack[self.stack_top] = value;
+        self.stack_top[0] = value;
         self.stack_top += 1;
     }
 
     fn peek(self: *Self, back: usize) Value {
-        return self.stack[self.stack_top - 1 - back];
+        return (self.stack_top - 1 - back)[0];
     }
 
     fn callValue(self: *Self, callee: Value, argCount: u8) bool {
         switch (callee) {
             .object => |object| {
                 switch (object.objectType) {
-                    //.Function => return self.call(object.asFunction(), argCount),
                     .NativeFunction => return self.callNative(object.asNativeFunction(), argCount),
                     .Closure => return self.call(object.asClosure(), argCount),
                     .Class => {
                         const class = object.asClass();
                         const instance = Object.Instance.create(self, class);
 
-                        self.stack[self.stack_top - argCount - 1] = Value.ObjectValue(&instance.object);
+                        (self.stack_top - argCount - 1)[0] = Value.ObjectValue(&instance.object);
 
                         if (class.methods.get(self.initString.?)) |initializer| {
                             return self.call(initializer.object.asClosure(), argCount);
@@ -348,7 +348,7 @@ pub const Vm = struct {
                     },
                     .BoundMethod => {
                         const boundMethod = object.asBoundMethod();
-                        self.stack[self.stack_top - argCount - 1] = boundMethod.receiver;
+                        (self.stack_top - argCount - 1)[0] = boundMethod.receiver;
                         return self.call(boundMethod.method, argCount);
                     },
                     else => {
@@ -375,7 +375,7 @@ pub const Vm = struct {
         const instance = receiver.object.asInstance();
 
         if (instance.fields.get(name)) |value| {
-            self.stack[self.stack_top - argCount - 1] = value.*;
+            (self.stack_top - argCount - 1)[0] = value.*;
             return self.callValue(value.*, argCount);
         }
 
@@ -415,7 +415,7 @@ pub const Vm = struct {
     }
 
     fn callNative(self: *Self, function: *Object.NativeFunction, argCount: u8) bool {
-        const args = self.stack[self.stack_top - argCount - 1];
+        const args = (self.stack_top - argCount - 1)[0];
         const result = function.function(args);
         self.stack_top -= argCount + 1;
         self.push(result);
@@ -449,7 +449,7 @@ pub const Vm = struct {
         return createdUpvalue;
     }
 
-    fn closeUpvalue(self: *Self, last: *Value) void {
+    fn closeUpvalue(self: *Self, last: [*]Value) void {
         while (self.openUpvalues) |openUpvalues| {
             if (@intFromPtr(openUpvalues.location) < @intFromPtr(last)) break;
             const upvalue = openUpvalues;
@@ -461,7 +461,7 @@ pub const Vm = struct {
 
     pub inline fn pop(self: *Self) Value {
         self.stack_top -= 1;
-        return self.stack[self.stack_top];
+        return self.stack_top[0];
     }
 
     inline fn readInstruction(self: *Self) OpCode {
