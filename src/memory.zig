@@ -159,10 +159,8 @@ pub const GarbageCollector = struct {
     }
 
     fn markValue(self: *Self, value: *Value) void {
-        switch (value.*) {
-            .object => self.markObject(value.object),
-            .nil, .boolean, .number => return,
-        }
+        if (!value.*.isObject()) return;
+        self.markObject(value.*.asObject());
     }
 
     fn markObject(self: *Self, object: *Object) void {

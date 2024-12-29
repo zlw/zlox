@@ -77,7 +77,7 @@ pub const Object = struct {
     }
 
     pub inline fn isA(value: Value, objectType: ObjectType) bool {
-        return value == .object and value.object.objectType == objectType;
+        return value.isObject() and value.asObject().objectType == objectType;
     }
 
     pub const String = struct {

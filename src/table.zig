@@ -11,7 +11,7 @@ const Obj = @import("./object.zig").Object;
 
 const Entry = struct {
     key: ?*String = null,
-    val: Value = Value.nil,
+    val: Value = Value.NilValue(),
 };
 
 pub const Table = struct {
