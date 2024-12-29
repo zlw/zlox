@@ -11,10 +11,10 @@ build:
 	zig build
 
 release:
-	zig build -Doptimize=ReleaseFast
+	zig build -Doptimize=ReleaseSafe
 
 cross_release:
-	zig build -Doptimize=ReleaseFast -Dtarget="x86_64-$(target)" && cp ./zig-out/bin/zlox ./zig-out/bin/zlox-x86_64-$(target)
+	zig build -Doptimize=ReleaseSafe -Dtarget="x86_64-$(target)" && cp ./zig-out/bin/zlox ./zig-out/bin/zlox-x86_64-$(target)
 
 unit:
 	zig test src/main.zig
